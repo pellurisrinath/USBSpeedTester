@@ -12,47 +12,60 @@ def get_usb_storage_devices():
         # On Windows, use PowerShell to get USB storage disks and partitions
         try:
             ps_script = """
+            # Pre-fetch all signed drivers once into a hashtable for fast per-device lookup
+            $allDrivers = @{}
+            try {
+                Get-CimInstance Win32_PnPSignedDriver -ErrorAction SilentlyContinue | ForEach-Object {
+                    if ($_.DeviceID) { $allDrivers[$_.DeviceID] = $_ }
+                }
+            } catch {}
+
+            # Pre-fetch all disk drives for PNP ID mapping
+            $allDiskDrives = @{}
+            try {
+                Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue | ForEach-Object {
+                    $allDiskDrives[$_.Index] = $_.PNPDeviceID
+                }
+            } catch {}
+
             Get-Disk | Where-Object BusType -eq 'USB' | ForEach-Object {
                 $disk = $_
-                $parts = Get-Partition -DiskNumber $disk.Number
+                $parts = Get-Partition -DiskNumber $disk.Number -ErrorAction SilentlyContinue
                 $volumes = @()
-                foreach ($part in $parts) {
-                    if ($part.DriveLetter) {
-                        try {
-                            $vol = Get-Volume -DriveLetter $part.DriveLetter -ErrorAction Stop
-                            $volumes += [PSCustomObject]@{
-                                DriveLetter = $part.DriveLetter
-                                Label = $vol.FileSystemLabel
-                                Size = $vol.Size
-                                FreeSpace = $vol.SizeRemaining
-                                FileSystem = $vol.FileSystem
+                if ($parts) {
+                    foreach ($part in $parts) {
+                        if ($part.DriveLetter) {
+                            try {
+                                $vol = Get-Volume -DriveLetter $part.DriveLetter -ErrorAction Stop
+                                $volumes += [PSCustomObject]@{
+                                    DriveLetter = $part.DriveLetter
+                                    Label = $vol.FileSystemLabel
+                                    Size = $vol.Size
+                                    FreeSpace = $vol.SizeRemaining
+                                    FileSystem = $vol.FileSystem
+                                }
+                            } catch {
+                                # Volume might not be formatted or mounted properly
                             }
-                        } catch {
-                            # Volume might not be formatted or mounted properly
                         }
                     }
                 }
-                
-                # Fetch PNP Device ID and Driver details
+
+                # Fast driver lookup via pre-fetched hashtable
                 $driverProvider = "Unknown"
                 $driverVersion = "Unknown"
                 $driverDate = "Unknown"
                 try {
-                    $dd = Get-CimInstance Win32_DiskDrive | Where-Object { $_.Index -eq $disk.Number }
-                    if ($dd) {
-                        $pnpId = $dd.PNPDeviceID
-                        $drv = Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DeviceID -eq $pnpId }
-                        if ($drv) {
-                            $driverProvider = $drv.DriverProviderName
-                            $driverVersion = $drv.DriverVersion
-                            if ($drv.DriverDate) {
-                                $driverDate = $drv.DriverDate.ToString("yyyy-MM-dd")
-                            }
+                    $pnpId = $allDiskDrives[$disk.Number]
+                    if ($pnpId -and $allDrivers.ContainsKey($pnpId)) {
+                        $drv = $allDrivers[$pnpId]
+                        $driverProvider = $drv.DriverProviderName
+                        $driverVersion = $drv.DriverVersion
+                        if ($drv.DriverDate) {
+                            $driverDate = $drv.DriverDate.ToString("yyyy-MM-dd")
                         }
                     }
-                } catch {
-                    # Ignore and fallback
-                }
+                } catch {}
 
                 [PSCustomObject]@{
                     DiskNumber = $disk.Number
@@ -66,7 +79,7 @@ def get_usb_storage_devices():
                 }
             } | ConvertTo-Json -Depth 3
             """
-            result = subprocess.run(["powershell", "-Command", ps_script], capture_output=True, text=True, check=True, creationflags=0x08000000)
+            result = subprocess.run(["powershell", "-Command", ps_script], capture_output=True, text=True, timeout=30, creationflags=0x08000000)
             output = result.stdout.strip()
             
             if output:
@@ -247,14 +260,22 @@ def get_usb_peripherals():
     if sys.platform == 'win32':
         try:
             ps_script = """
-            Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -like 'USB*' -and $_.Class -ne 'DiskDrive' -and $_.Class -ne 'Volume' } | ForEach-Object {
+            # Pre-fetch all signed drivers once into a hashtable for fast per-device lookup
+            $allDrivers = @{}
+            try {
+                Get-CimInstance Win32_PnPSignedDriver -ErrorAction SilentlyContinue | ForEach-Object {
+                    if ($_.DeviceID) { $allDrivers[$_.DeviceID] = $_ }
+                }
+            } catch {}
+
+            Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | Where-Object { $_.InstanceId -like 'USB*' -and $_.Class -ne 'DiskDrive' -and $_.Class -ne 'Volume' } | ForEach-Object {
                 $dev = $_
                 $driverProvider = "Unknown"
                 $driverVersion = "Unknown"
                 $driverDate = "Unknown"
                 try {
-                    $drv = Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DeviceID -eq $dev.InstanceId }
-                    if ($drv) {
+                    if ($allDrivers.ContainsKey($dev.InstanceId)) {
+                        $drv = $allDrivers[$dev.InstanceId]
                         $driverProvider = $drv.DriverProviderName
                         $driverVersion = $drv.DriverVersion
                         if ($drv.DriverDate) {
@@ -272,7 +293,7 @@ def get_usb_peripherals():
                 }
             } | ConvertTo-Json
             """
-            result = subprocess.run(["powershell", "-Command", ps_script], capture_output=True, text=True, check=True, creationflags=0x08000000)
+            result = subprocess.run(["powershell", "-Command", ps_script], capture_output=True, text=True, timeout=30, creationflags=0x08000000)
             output = result.stdout.strip()
             if output:
                 parsed = json.loads(output)
