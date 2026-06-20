@@ -114,10 +114,6 @@ class USBSpeedTestApp {
             }
         });
 
-        // Device type filter
-        document.getElementById('deviceTypeFilter')?.addEventListener('change', (e) => {
-            this.filterDevicesByType(e.target.value);
-        });
 
         // Open reports folder button
         document.getElementById('openReportsFolderBtn')?.addEventListener('click', async () => {
@@ -747,14 +743,6 @@ class USBSpeedTestApp {
         }
     }
 
-    filterDevicesByType(type) {
-        if (!type) {
-            this.displayDevices(this.devices);
-            return;
-        }
-        const filtered = this.devices.filter(d => d.device_type === type);
-        this.displayDevices(filtered);
-    }
 
     /* ============================================
        AI Diagnostics Assistant Client Logic
