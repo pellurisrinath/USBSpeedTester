@@ -178,6 +178,7 @@ class SetupInstaller:
                 f'$Shortcut.TargetPath = "{target}"; '
                 f'$Shortcut.Description = "{description}"; '
                 f'$Shortcut.WorkingDirectory = "{os.path.dirname(target)}"; '
+                f'$Shortcut.IconLocation = "{target}, 0"; '
                 f'$Shortcut.Save()'
             )
             self.log_verbose(f"Executing PowerShell command: {ps_command}")
@@ -258,21 +259,36 @@ class SetupInstaller:
             self.update_status("Creating shortcuts...", 80)
             userprofile = os.environ.get("USERPROFILE")
             appdata = os.environ.get("APPDATA")
-            self.log_verbose(f"Shortcut environment: USERPROFILE='{userprofile}', APPDATA='{appdata}'")
+            programdata = os.environ.get("ProgramData", "C:\\ProgramData")
+            self.log_verbose(f"Shortcut environment: USERPROFILE='{userprofile}', APPDATA='{appdata}', ProgramData='{programdata}'")
             
             shortcuts_created = 0
+
+            # 5a. Desktop shortcut (current user)
             if userprofile:
                 desktop_lnk = os.path.join(userprofile, "Desktop", "USB Speed Test & Monitor.lnk")
                 if self.create_shortcut(str(self.dest_exe), desktop_lnk):
                     shortcuts_created += 1
-            
+
+            # 5b. Current-user Start Menu — dedicated subfolder under Programs
             if appdata:
-                startmenu_folder = Path(appdata) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
-                self.log_verbose(f"Creating Start Menu folder: '{startmenu_folder}'...")
-                startmenu_folder.mkdir(parents=True, exist_ok=True)
-                startmenu_lnk = startmenu_folder / "USB Speed Test & Monitor.lnk"
-                if self.create_shortcut(str(self.dest_exe), str(startmenu_lnk)):
+                user_sm_folder = Path(appdata) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "USB Speed Test & Monitor"
+                self.log_verbose(f"Creating user Start Menu folder: '{user_sm_folder}'...")
+                user_sm_folder.mkdir(parents=True, exist_ok=True)
+                user_sm_lnk = user_sm_folder / "USB Speed Test & Monitor.lnk"
+                if self.create_shortcut(str(self.dest_exe), str(user_sm_lnk)):
                     shortcuts_created += 1
+
+            # 5c. All-Users Start Menu (ProgramData) — visible to every Windows account
+            all_users_sm_folder = Path(programdata) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "USB Speed Test & Monitor"
+            self.log_verbose(f"Creating All Users Start Menu folder: '{all_users_sm_folder}'...")
+            try:
+                all_users_sm_folder.mkdir(parents=True, exist_ok=True)
+                all_users_sm_lnk = all_users_sm_folder / "USB Speed Test & Monitor.lnk"
+                if self.create_shortcut(str(self.dest_exe), str(all_users_sm_lnk)):
+                    shortcuts_created += 1
+            except PermissionError:
+                self.log_verbose("Skipped All-Users Start Menu shortcut: insufficient permissions (not running as Administrator).")
                     
             self.log_verbose(f"Shortcuts creation complete. Total created: {shortcuts_created}")
             time.sleep(0.3)

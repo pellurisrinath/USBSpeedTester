@@ -4,29 +4,13 @@ A premium, lightweight, cross-platform desktop application built with Python (`p
 
 ---
 
-## 🖥️ User Interface Tour
+## 📸 Screenshots
 
-Below is a visual walk-through of the application's tabs and design:
+> **[👉 View full Screenshots Gallery →](docs/SCREENSHOTS.md)**
+>
+> The gallery covers all 8 sections of the app: Devices, Storage, Speed Test (4 stages), Comparison, HTML Report, Reports, AI Assistant (4 examples), and Application Settings.
 
-### 1. Devices Tab (Connected Peripherals)
-*Lists all connected USB peripherals and hardware details (removability, mount point, classes).*
-![Connected Peripherals](docs/images/1_devices_tab.png)
-
-### 2. Storage Tab (Disk Space Analysis)
-*Displays high-contrast storage consumption percentages and file systems for connected drives.*
-![Storage Analysis](docs/images/2_storage_tab.png)
-
-### 3. Speed Test Tab (Benchmark Configuration)
-*Allows selecting files sizes (20MB to 250MB) and executing safe write/read benchmarks.*
-![Read/Write Benchmarking](docs/images/3_speed_test_tab.png)
-
-### 4. Comparison Tab (Multi-Device Matrix)
-*Enables selecting multiple session test runs to generate comparative performance matrices.*
-![Performance Matrix](docs/images/4_comparison_tab.png)
-
-### 5. Reports Tab (Saved Benchmarks)
-*Lists all saved detailed HTML reports with direct access to open them in your web browser.*
-![Saved Reports](docs/images/5_reports_tab.png)## 📸 Key Features
+## 📸 Key Features
 
 *   **USB Peripheral Analyzer**: Automatically lists all connected USB hardware (Storage Drives, Audio Devices, Cameras, Input Devices, and other peripherals) along with driver details (provider, version, date) using Windows PnP APIs, `diskutil` (macOS), or `lsusb` (Linux).
 *   **Speed Benchmarking**: Executes precise write and read tests with real-time speedometers. Enforces hardware cache flushes (`os.fsync`) to prevent RAM buffering from inflating benchmark results.
@@ -63,8 +47,9 @@ This repository maintains a clean, modular structure conforming to standard Pyth
 
 ```text
 ├── docs/                       # Project documentation
-│   ├── images/                 # User interface screenshots
-│   ├── ProjectDocs/            # BRD, PRD, and Implementation plans
+│   ├── images/                 # User interface screenshots (14 images)
+│   ├── ProjectDocs/            # BRD, PRD, Implementation plans & walkthroughs
+│   ├── SCREENSHOTS.md          # Full visual gallery of all app tabs & features
 │   └── User_Guide.md           # Friendly documentation for non-technical users
 ├── gui/                        # Frontend UI assets
 │   ├── app.js                  # Frontend controllers and API bridge
@@ -85,7 +70,8 @@ This repository maintains a clean, modular structure conforming to standard Pyth
 ├── USBSpeedTest.spec           # PyInstaller build specification
 ├── requirements.txt            # Python dependencies manifest
 ├── .gitignore                  # Git exclusion rules
-└── README.md                   # Project overview & documentation
+├── CHANGELOG.md                # Full version history and release notes
+├── README.md                   # Project overview & documentation
 ```
 
 ---
