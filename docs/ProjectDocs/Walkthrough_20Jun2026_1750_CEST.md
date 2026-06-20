@@ -26,6 +26,8 @@ This document details the walkthrough of the bug fixes and features added to res
     *   Detects if an existing instance of `USBSpeedTest.exe` is currently running/locked and warns the user to close it.
     *   Dynamically creates Start Menu and Desktop shortcuts via native PowerShell COM objects.
     *   Includes a checkbox to auto-launch the application upon completion.
+    *   **Layout and Visibility Fixes**: Increased geometry to `540x400` and packed `btn_frame` with `side=tk.BOTTOM` to prevent button clipping. Styled the buttons with Slate 700 and Purple 500 backgrounds with white text for high contrast and clear visibility in dark mode.
+    *   **Process Launch Fix**: Removed the mutually exclusive `subprocess.CREATE_NEW_CONSOLE` creation flag from the detached Popen call. This resolves `[WinError 87] The parameter is incorrect` that crashed the installer during auto-launch.
 *   **`build.bat` [MODIFY]**:
     *   Updated the script to first compile the main `dist/USBSpeedTest.exe` and then compile `dist/UBSSpeedtest_setup.exe` bundling the compiled app binary.
 
