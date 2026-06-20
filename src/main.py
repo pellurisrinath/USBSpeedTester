@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 sys.path.append(str(Path(__file__).parent / "modules"))
 
-from config import REPORTS_DIR, LOGS_DIR, BASE_DIR, load_config, save_config
+from config import REPORTS_DIR, LOGS_DIR, COMPARISONS_DIR, BASE_DIR, load_config, save_config
 from modules.usb_detector import get_usb_storage_devices, get_usb_peripherals
 from modules.speed_test import perform_speed_test, generate_html_report, generate_comparison_html_report
 from modules.platform_utils import get_platform, open_report_file, open_file_explorer
@@ -366,6 +366,7 @@ class BackendAPI:
     def get_reports_list(self, limit=50):
         try:
             reports = []
+            # Load device reports
             if REPORTS_DIR.exists():
                 for filename in os.listdir(REPORTS_DIR):
                     if filename.endswith(".html"):
@@ -373,12 +374,27 @@ class BackendAPI:
                         created = datetime.datetime.fromtimestamp(os.path.getctime(path)).isoformat() + "Z"
                         reports.append({
                             "report_id": f"report-file-{uuid.uuid4().hex[:4]}",
-                            "report_type": "comparison" if "compare" in filename else "device",
+                            "report_type": "device",
                             "file_name": filename,
                             "file_path": str(path),
                             "file_size_bytes": os.path.getsize(path),
                             "created_timestamp": created,
                             "device_name": filename.split("_")[1] if "_" in filename else "Benchmark"
+                        })
+            # Load comparisons
+            if COMPARISONS_DIR.exists():
+                for filename in os.listdir(COMPARISONS_DIR):
+                    if filename.endswith(".html"):
+                        path = COMPARISONS_DIR / filename
+                        created = datetime.datetime.fromtimestamp(os.path.getctime(path)).isoformat() + "Z"
+                        reports.append({
+                            "report_id": f"report-file-{uuid.uuid4().hex[:4]}",
+                            "report_type": "comparison",
+                            "file_name": filename,
+                            "file_path": str(path),
+                            "file_size_bytes": os.path.getsize(path),
+                            "created_timestamp": created,
+                            "device_name": "Comparison"
                         })
             # Sort reports by creation time descending
             reports.sort(key=lambda x: x["created_timestamp"], reverse=True)

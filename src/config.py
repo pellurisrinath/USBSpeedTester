@@ -32,6 +32,7 @@ else:
 
 REPORTS_DIR = BASE_DIR / "reports"
 LOGS_DIR = BASE_DIR / "logs"
+COMPARISONS_DIR = BASE_DIR / "comparisions"
 CONFIG_FILE = BASE_DIR / "config.json"
 
 DEFAULT_CONFIG = {
@@ -68,9 +69,10 @@ DEFAULT_CONFIG = {
 }
 
 def ensure_directories():
-    """Ensures reports and logs folders exist."""
+    """Ensures reports, logs, and comparisons folders exist."""
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    COMPARISONS_DIR.mkdir(parents=True, exist_ok=True)
 
 def load_config():
     """Loads configuration JSON from base directory, or writes default config if missing."""

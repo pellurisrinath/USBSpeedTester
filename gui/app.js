@@ -131,6 +131,18 @@ class USBSpeedTestApp {
             }
         });
 
+        // Open comparisons folder button
+        document.getElementById('openComparisonsFolderBtn')?.addEventListener('click', async () => {
+            if (this.api) {
+                const appInfo = await this.api.get_app_info();
+                if (appInfo.success) {
+                    const dataDir = appInfo.data.data_directory;
+                    const comparisonsPath = dataDir + (dataDir.includes('\\') ? '\\comparisions' : '/comparisions');
+                    await this.api.open_path(comparisonsPath);
+                }
+            }
+        });
+
         // Speed test cancel button
         document.getElementById('cancelBtn')?.addEventListener('click', async () => {
             if (this.api) {
