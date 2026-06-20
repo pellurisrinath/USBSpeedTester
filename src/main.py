@@ -543,9 +543,11 @@ class BackendAPI:
                 f"Connected USB Devices:\n{devices_summary or 'No USB devices detected.'}\n\n"
                 f"Recent Benchmark Runs in this Session:\n{recent_benchmarks}\n\n"
                 "Guidelines:\n"
-                "1. Give direct, practical, technical yet easy-to-understand explanations.\n"
-                "2. Suggest actionable steps if a device appears slow (e.g., check port types USB 2.0 vs 3.0, formatting options FAT32/exFAT/NTFS, cluster sizes).\n"
-                "3. Keep answers concise, and format code or command instructions cleanly using Markdown blocks."
+                "1. Answer ONLY questions pertaining to this application, its features, USB technology, storage protocols, or hardware diagnostics/troubleshooting.\n"
+                "2. If the user asks about anything out of scope (such as generating images, generating PDFs, movies, writing non-USB code, or general knowledge), you must NOT answer. Instead, respond with exactly: 'This request is outside the scope of my usage as the USB Speed Utility AI Assistant.'\n"
+                "3. Give direct, practical, technical yet easy-to-understand explanations.\n"
+                "4. Suggest actionable steps if a device appears slow (e.g., check port types USB 2.0 vs 3.0, formatting options FAT32/exFAT/NTFS, cluster sizes).\n"
+                "5. Keep answers concise, and format code or command instructions cleanly using Markdown blocks."
             )
             
             # Inject system prompt into history (remove any pre-existing system prompt to avoid conflict)
