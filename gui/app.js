@@ -102,6 +102,7 @@ class USBSpeedTestApp {
         document.getElementById('settingsBtn')?.addEventListener('click', () => this.openSettings());
         document.getElementById('closeSettingsBtn')?.addEventListener('click', () => this.closeSettings());
         document.getElementById('saveSettingsBtn')?.addEventListener('click', () => this.saveConfigSettings());
+        document.getElementById('exportConfigBtn')?.addEventListener('click', () => this.exportConfigSettings());
 
         // Chatbot buttons
         document.getElementById('sendChatBtn')?.addEventListener('click', () => this.sendChat());
@@ -676,6 +677,23 @@ class USBSpeedTestApp {
             }
         } catch (e) {
             this.showToast('Error updating configuration: ' + e, 'error');
+        }
+    }
+
+    async exportConfigSettings() {
+        if (!this.api) return;
+        try {
+            const response = await this.api.export_configuration();
+            if (response.success) {
+                this.showToast('Configuration exported successfully', 'success');
+            } else if (response.error) {
+                const err = response.error.toLowerCase();
+                if (!err.includes('cancel') && !err.includes('none') && !err.includes('null')) {
+                    this.showToast('Failed to export configuration: ' + response.error, 'error');
+                }
+            }
+        } catch (e) {
+            this.showToast('Error exporting configuration: ' + e, 'error');
         }
     }
 

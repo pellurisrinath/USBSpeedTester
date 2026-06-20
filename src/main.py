@@ -439,6 +439,51 @@ class BackendAPI:
             return self._response(True, {"message": "Configuration updated successfully"})
         return self._response(False, error="Failed to write configuration file")
 
+    # 17b. Export Configuration
+    def export_configuration(self):
+        global app_window
+        import socket
+        import time
+        import json
+        
+        try:
+            if not app_window:
+                return self._response(False, error="Application window is not ready.")
+                
+            # format: USBSpeedTest_<MachineName>_<ddMMMyyyy>_<HHmm>_<timezone>.cfg
+            machine_name = socket.gethostname().lower()
+            now = datetime.datetime.now()
+            date_str = now.strftime("%d%B%Y") # e.g. 20June2026
+            time_str = now.strftime("%H%M")
+            tz_str = time.tzname[time.daylight].lower()
+            default_filename = f"USBSpeedTest_{machine_name}_{date_str}_{time_str}_{tz_str}.cfg"
+            
+            file_types = ('Configuration Files (*.cfg)', 'All Files (*.*)')
+            
+            save_path = app_window.create_file_dialog(
+                dialog_type=webview.SAVE_DIALOG,
+                directory=os.path.expanduser("~"),
+                save_filename=default_filename,
+                file_types=file_types
+            )
+            
+            if not save_path:
+                return self._response(False, error="Export cancelled by user.")
+                
+            path_str = save_path[0] if isinstance(save_path, (list, tuple)) else save_path
+            if not path_str:
+                return self._response(False, error="Export cancelled by user.")
+                
+            current_config = load_config()
+            
+            with open(path_str, 'w', encoding='utf-8') as f:
+                json.dump(current_config, f, indent=4)
+                
+            return self._response(True, {"message": "Configuration exported successfully", "path": path_str})
+            
+        except Exception as e:
+            return self._response(False, error=str(e))
+
     # 18. Open Path in File Explorer
     def open_path(self, path):
         success = open_file_explorer(path)

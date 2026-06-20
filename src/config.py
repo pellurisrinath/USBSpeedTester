@@ -20,12 +20,12 @@ try:
 except Exception:
     pass
 
-if is_portable:
+if sys.platform == 'win32':
+    BASE_DIR = Path("C:\\ProgramData\\USBSpeedTest")
+elif is_portable:
     BASE_DIR = APP_DIR
 else:
-    if sys.platform == 'win32':
-        BASE_DIR = Path("C:\\ProgramData\\USBSpeedTest")
-    elif sys.platform == 'darwin':
+    if sys.platform == 'darwin':
         BASE_DIR = Path.home() / "Library" / "Application Support" / "USBSpeedTest"
     else:
         BASE_DIR = Path.home() / ".local" / "share" / "usb-speedtest"
