@@ -50,40 +50,78 @@ This repository maintains a clean, modular structure conforming to standard Pyth
 │       └── usb_detector.py     # USB peripheral & storage enumerators
 ├── build.bat                   # Compilation script for PyInstaller
 ├── USBSpeedTest.spec           # PyInstaller build specification
+├── requirements.txt            # Python dependencies manifest
 ├── .gitignore                  # Git exclusion rules
 └── README.md                   # Project overview & documentation
 ```
 
 ---
 
-## ⚙️ Getting Started
+## ⚙️ Getting Started & Installation
 
-### Prerequisites
+Follow these instructions to download the project locally, set up the environment, run the application, and compile it into a standalone executable.
 
-Ensure you have Python 3.10+ installed. Install the required libraries:
+### 1. Download the Project Locally
+
+Clone the repository to your local machine using Git:
 
 ```bash
-pip install pywebview psutil pystray plyer Pillow
+git clone https://github.com/pellurisrinath/USBSpeedTester.git
+cd USBSpeedTester
 ```
 
-### Running the Application
+### 2. Environment Setup (Recommended)
 
-To run the application from source code:
+It is highly recommended to use a Python virtual environment to keep dependencies isolated:
+
+```bash
+# Create a virtual environment
+python -m venv venv
+
+# Activate the virtual environment
+# On Windows (Command Prompt):
+call venv\Scripts\activate
+# On Windows (PowerShell):
+.\venv\Scripts\Activate.ps1
+# On macOS / Linux:
+source venv/bin/activate
+```
+
+### 3. Install Dependencies
+
+Install all the required python libraries using the provided `requirements.txt`:
+
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### 4. Running the Application from Source
+
+Launch the desktop interface by running the main entry script:
 
 ```bash
 python src/main.py
 ```
 
-### Compiling Standalone Executable
+### 5. Compiling to a Standalone Executable (`.exe`)
 
-You can compile the utility into a single standalone executable (which embeds python and all assets) using `PyInstaller`. 
+You can bundle the entire application—including the Python runtime, script logic, and all web frontend assets (`gui/` folder)—into a single, portable executable file. This allows end-users to run the tool without needing Python installed.
 
-Run the build script:
+To compile the application, run the automated build script:
 
 ```cmd
+# On Windows:
 build.bat
 ```
-The compiled output will be generated under `dist/USBSpeedTest.exe`.
+
+The script will automatically:
+1. Run PyInstaller using `USBSpeedTest.spec`.
+2. Bundle `gui/` directory files inside the executable's assets.
+3. Package the final `.exe` under the `dist/` folder.
+
+Once complete, your standalone executable will be located at:
+📁 **`dist/USBSpeedTest.exe`**
 
 ---
 
