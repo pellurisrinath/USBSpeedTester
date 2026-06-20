@@ -12,10 +12,7 @@ def build_windows():
     # 1. Compile main application
     run_cmd(["pyinstaller", "USBSpeedTest.spec"])
     # 2. Compile setup installer
-    run_cmd([
-        "pyinstaller", "--onefile", "--noconsole", "--name", "UBSSpeedtest_setup",
-        "--add-data", "dist/USBSpeedTest.exe;.", "--distpath", "dist", "src/setup_installer.py"
-    ])
+    run_cmd(["pyinstaller", "UBSSpeedtest_setup.spec"])
     print("\nDone! Windows standalone executable and setup installer are under the 'dist' directory.")
 
 def build_linux():
