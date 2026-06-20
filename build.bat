@@ -7,8 +7,7 @@ echo Installing requirements...
 pip install pywebview psutil pystray plyer Pillow pyinstaller
 echo.
 echo Compiling application with PyInstaller...
-pyinstaller --noconsole --onefile --add-data "gui;gui" main.py
+pyinstaller USBSpeedTest.spec
 echo.
 echo Done! Standalone executable is available under the 'dist' directory.
 echo.
-pause
