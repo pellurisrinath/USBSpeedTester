@@ -15,6 +15,7 @@ from config import REPORTS_DIR, BASE_DIR, load_config, save_config
 from modules.usb_detector import get_usb_storage_devices, get_usb_peripherals
 from modules.speed_test import perform_speed_test, generate_html_report, generate_comparison_html_report
 from modules.platform_utils import get_platform, open_report_file, open_file_explorer
+from modules.ai_client import AIClient
 import modules.monitor_service as monitor_service
 
 # Global State
@@ -397,6 +398,75 @@ class BackendAPI:
     def open_path(self, path):
         success = open_file_explorer(path)
         return self._response(success, {"message": "Opened successfully"} if success else None, None if success else "Failed to open path")
+
+    # 19. Send Chatbot Message
+    def send_chatbot_message(self, chat_history):
+        global test_history
+        try:
+            config = load_config()
+            ai_settings = config.get("ai_chatbot", {})
+            
+            provider = ai_settings.get("provider", "ollama")
+            api_key = ai_settings.get("api_key", "")
+            model = ai_settings.get("model", "llama3")
+            endpoint = ai_settings.get("endpoint", "http://localhost:11434")
+            
+            # Enrich system prompt with active context
+            devices_data = self.get_all_devices()
+            devices_summary = ""
+            if devices_data["success"] and devices_data["data"]:
+                devs = devices_data["data"]["devices"]
+                devices_summary = "\n".join([
+                    f"- Name: {d['name']}, Type: {d['device_type']}, Mount: {d.get('mount_point') or 'N/A'}, FileSystem: {d.get('file_system') or 'N/A'}, Size: {d.get('total_space_gb') or 'N/A'} GB (Free: {d.get('free_space_gb') or 'N/A'} GB)"
+                    for d in devs
+                ])
+            
+            recent_benchmarks = ""
+            if test_history:
+                recent_benchmarks = "\n".join([
+                    f"- Run: {t['device_name']} on {t['device_path']}. Read: {t['read_speed_mbps']:.2f} MB/s, Write: {t['write_speed_mbps']:.2f} MB/s (File size: {t['test_size_mb']} MB, System: {t['file_system']})"
+                    for t in test_history[-5:]
+                ])
+            else:
+                recent_benchmarks = "No speed benchmarks have been run in this session yet."
+                
+            system_prompt = (
+                "You are the USB Speed Utility AI Assistant, a helpful and technical assistant integrated directly into a desktop USB diagnostics tool.\n"
+                "Your goal is to help users analyze speed test results, explain USB hardware protocols/standards, and troubleshoot USB-related issues.\n\n"
+                "Current System Context:\n"
+                f"Connected USB Devices:\n{devices_summary or 'No USB devices detected.'}\n\n"
+                f"Recent Benchmark Runs in this Session:\n{recent_benchmarks}\n\n"
+                "Guidelines:\n"
+                "1. Give direct, practical, technical yet easy-to-understand explanations.\n"
+                "2. Suggest actionable steps if a device appears slow (e.g., check port types USB 2.0 vs 3.0, formatting options FAT32/exFAT/NTFS, cluster sizes).\n"
+                "3. Keep answers concise, and format code or command instructions cleanly using Markdown blocks."
+            )
+            
+            # Inject system prompt into history (remove any pre-existing system prompt to avoid conflict)
+            full_history = [{"role": "system", "content": system_prompt}]
+            for msg in chat_history:
+                if msg["role"] != "system":
+                    full_history.append(msg)
+                    
+            client = AIClient(provider, api_key, model, endpoint)
+            reply = client.get_response(full_history)
+            
+            return self._response(True, {"reply": reply})
+        except Exception as e:
+            return self._response(False, error=str(e))
+
+    # 20. Test LLM Connection
+    def test_llm_connection(self, provider, api_key, model, endpoint):
+        try:
+            client = AIClient(provider, api_key, model, endpoint)
+            test_history = [{"role": "user", "content": "Hello! Reply with exactly the word 'SUCCESS' and nothing else."}]
+            reply = client.get_response(test_history)
+            
+            if reply:
+                return self._response(True, {"reply": reply.strip()})
+            return self._response(False, error="Received empty response from the provider.")
+        except Exception as e:
+            return self._response(False, error=str(e))
 
 
 def show_app_window():

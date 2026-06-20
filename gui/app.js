@@ -69,6 +69,14 @@ class USBSpeedTestApp {
                 
                 const speedTest = this.config.speed_test || {};
                 document.getElementById('default-size-select').value = speedTest.default_test_size_mb || 100;
+                
+                // Load AI Settings
+                const ai = this.config.ai_chatbot || {};
+                document.getElementById('ai-provider-select').value = ai.provider || 'ollama';
+                document.getElementById('ai-key-input').value = ai.api_key || '';
+                document.getElementById('ai-model-input').value = ai.model || 'llama3';
+                document.getElementById('ai-endpoint-input').value = ai.endpoint || 'http://localhost:11434';
+                this.handleAIProviderChange();
             }
         } catch (error) {
             console.warn('Failed to load configuration:', error);
@@ -94,6 +102,16 @@ class USBSpeedTestApp {
         document.getElementById('settingsBtn')?.addEventListener('click', () => this.openSettings());
         document.getElementById('closeSettingsBtn')?.addEventListener('click', () => this.closeSettings());
         document.getElementById('saveSettingsBtn')?.addEventListener('click', () => this.saveConfigSettings());
+
+        // Chatbot buttons
+        document.getElementById('sendChatBtn')?.addEventListener('click', () => this.sendChat());
+        document.getElementById('clearChatBtn')?.addEventListener('click', () => this.clearChat());
+        document.getElementById('chatInput')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this.sendChat();
+            }
+        });
 
         // Device type filter
         document.getElementById('deviceTypeFilter')?.addEventListener('change', (e) => {
@@ -639,6 +657,12 @@ class USBSpeedTestApp {
                 "auto_save": true,
                 "include_charts": true,
                 "include_device_history": true
+            },
+            "ai_chatbot": {
+                "provider": document.getElementById('ai-provider-select').value,
+                "api_key": document.getElementById('ai-key-input').value,
+                "model": document.getElementById('ai-model-input').value,
+                "endpoint": document.getElementById('ai-endpoint-input').value
             }
         };
 
@@ -700,6 +724,247 @@ class USBSpeedTestApp {
         }
         const filtered = this.devices.filter(d => d.device_type === type);
         this.displayDevices(filtered);
+    }
+
+    /* ============================================
+       AI Diagnostics Assistant Client Logic
+       ============================================ */
+
+    handleAIProviderChange() {
+        const provider = document.getElementById('ai-provider-select').value;
+        const keyGroup = document.getElementById('ai-key-group');
+        const endpointInput = document.getElementById('ai-endpoint-input');
+        const modelInput = document.getElementById('ai-model-input');
+
+        // Show/hide API Key group
+        if (provider === 'ollama') {
+            keyGroup.style.display = 'none';
+        } else {
+            keyGroup.style.display = 'block';
+        }
+
+        // Auto-fill endpoints & models if empty or default
+        const defaultEndpoints = {
+            'ollama': 'http://localhost:11434',
+            'openai': 'https://api.openai.com',
+            'claude': 'https://api.anthropic.com',
+            'gemini': 'https://generativelanguage.googleapis.com',
+            'custom': 'http://localhost:1234'
+        };
+
+        const defaultModels = {
+            'ollama': 'llama3',
+            'openai': 'gpt-4o',
+            'claude': 'claude-3-5-sonnet-20240620',
+            'gemini': 'gemini-1.5-flash',
+            'custom': 'local-model'
+        };
+
+        // If endpoint is empty or matches one of the defaults, update it
+        const currentEndpoint = endpointInput.value.trim();
+        const isDefaultEndpoint = Object.values(defaultEndpoints).includes(currentEndpoint) || currentEndpoint === '';
+        if (isDefaultEndpoint && defaultEndpoints[provider]) {
+            endpointInput.value = defaultEndpoints[provider];
+        }
+
+        // If model is empty or matches one of the defaults, update it
+        const currentModel = modelInput.value.trim();
+        const isDefaultModel = Object.values(defaultModels).includes(currentModel) || currentModel === '';
+        if (isDefaultModel && defaultModels[provider]) {
+            modelInput.value = defaultModels[provider];
+        }
+    }
+
+    toggleAPIKeyVisibility() {
+        const input = document.getElementById('ai-key-input');
+        const icon = document.getElementById('ai-key-toggle-icon');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+
+    async testAIConnection() {
+        const provider = document.getElementById('ai-provider-select').value;
+        const apiKey = document.getElementById('ai-key-input').value.trim();
+        const model = document.getElementById('ai-model-input').value.trim();
+        const endpoint = document.getElementById('ai-endpoint-input').value.trim();
+
+        if (!model || !endpoint) {
+            this.showToast('Model name and Endpoint URL are required.', 'error');
+            return;
+        }
+
+        const btn = document.getElementById('testAIConnectionBtn');
+        const origText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+
+        try {
+            const response = await this.api.test_llm_connection(provider, apiKey, model, endpoint);
+            btn.disabled = false;
+            btn.innerHTML = origText;
+
+            if (response.success) {
+                this.showToast('Connection Successful! AI replied: ' + response.data.reply, 'success');
+            } else {
+                this.showToast('Connection Failed: ' + response.error, 'error');
+            }
+        } catch (e) {
+            btn.disabled = false;
+            btn.innerHTML = origText;
+            this.showToast('Test failed: ' + e, 'error');
+        }
+    }
+
+    // Chat logic
+    getChatHistory() {
+        const messages = [];
+        const bubbles = document.querySelectorAll('#chatMessages .chat-message');
+        bubbles.forEach(b => {
+            if (b.id === 'chatTypingIndicator') return;
+            const role = b.classList.contains('user') ? 'user' : 'assistant';
+            const content = b.querySelector('.message-bubble').innerText;
+            messages.push({ role, content });
+        });
+        return messages;
+    }
+
+    async sendChat() {
+        const input = document.getElementById('chatInput');
+        const text = input.value.trim();
+        if (!text) return;
+
+        // Clear input
+        input.value = '';
+
+        // Render user message
+        this.renderChatMessage('user', text);
+        this.showChatTypingIndicator();
+        this.scrollChatToBottom();
+
+        try {
+            const history = this.getChatHistory();
+            const response = await this.api.send_chatbot_message(history);
+            
+            this.removeChatTypingIndicator();
+
+            if (response.success) {
+                this.renderChatMessage('assistant', response.data.reply);
+            } else {
+                this.renderChatMessage('assistant', '⚠️ Error: ' + response.error);
+            }
+        } catch (e) {
+            this.removeChatTypingIndicator();
+            this.renderChatMessage('assistant', '⚠️ Connection error: ' + e);
+        }
+        this.scrollChatToBottom();
+    }
+
+    sendQuickPrompt(promptText) {
+        document.getElementById('chatInput').value = promptText;
+        this.sendChat();
+    }
+
+    renderChatMessage(sender, text) {
+        const feed = document.getElementById('chatMessages');
+        if (!feed) return;
+
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `chat-message ${sender}`;
+
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble';
+        
+        if (sender === 'user') {
+            bubble.innerText = text;
+        } else {
+            // Render markdown to HTML
+            bubble.innerHTML = this.formatMarkdown(text);
+        }
+
+        msgDiv.appendChild(bubble);
+        feed.appendChild(msgDiv);
+    }
+
+    showChatTypingIndicator() {
+        this.removeChatTypingIndicator();
+        
+        const feed = document.getElementById('chatMessages');
+        const indicator = document.createElement('div');
+        indicator.id = 'chatTypingIndicator';
+        indicator.className = 'chat-message assistant';
+        indicator.innerHTML = `
+            <div class="message-bubble" style="padding: 10px 14px;">
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            </div>
+        `;
+        feed.appendChild(indicator);
+    }
+
+    removeChatTypingIndicator() {
+        const ind = document.getElementById('chatTypingIndicator');
+        if (ind) ind.remove();
+    }
+
+    clearChat() {
+        this.clearChatFeed();
+    }
+
+    clearChatFeed() {
+        const feed = document.getElementById('chatMessages');
+        if (feed) {
+            feed.innerHTML = `
+                <div class="chat-message assistant">
+                    <div class="message-bubble">
+                        Hello! I am your AI Diagnostics Assistant. I can help you analyze your USB speed test benchmarks, troubleshoot connectivity issues, or explain hardware specifications.
+                    </div>
+                </div>
+            `;
+            this.showToast('Chat history cleared', 'info');
+        }
+    }
+
+    scrollChatToBottom() {
+        const feed = document.getElementById('chatMessages');
+        if (feed) {
+            feed.scrollTop = feed.scrollHeight;
+        }
+    }
+
+    formatMarkdown(text) {
+        // Obfuscate HTML tags to prevent XSS
+        let html = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        
+        // Code Blocks ```code```
+        html = html.replace(/```([\s\S]+?)```/g, (match, p1) => {
+            return `<pre><code>${p1.trim()}</code></pre>`;
+        });
+        
+        // Inline code `code`
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+        
+        // Bold **text**
+        html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        
+        // Unordered lists
+        html = html.replace(/^\s*[-*]\s+(.+)$/gm, '<li>$1</li>');
+        html = html.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
+        
+        // Line breaks
+        html = html.replace(/\n\n/g, '</p><p>');
+        html = html.replace(/\n/g, '<br>');
+        
+        return `<p>${html}</p>`;
     }
 }
 

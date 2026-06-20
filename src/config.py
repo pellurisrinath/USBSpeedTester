@@ -4,12 +4,28 @@ import json
 from pathlib import Path
 
 # Base Directories
-if sys.platform == 'win32':
-    BASE_DIR = Path("C:\\ProgramData\\USBSpeedTest")
-elif sys.platform == 'darwin':
-    BASE_DIR = Path.home() / "Library" / "Application Support" / "USBSpeedTest"
+APP_DIR = Path(__file__).parent.parent.resolve()
+
+# Check if application directory is writable (portable mode check)
+is_portable = False
+try:
+    # Try creating a temporary test file in the app directory
+    test_file = APP_DIR / ".write_test"
+    test_file.touch()
+    test_file.unlink()
+    is_portable = True
+except Exception:
+    pass
+
+if is_portable:
+    BASE_DIR = APP_DIR
 else:
-    BASE_DIR = Path.home() / ".local" / "share" / "usb-speedtest"
+    if sys.platform == 'win32':
+        BASE_DIR = Path("C:\\ProgramData\\USBSpeedTest")
+    elif sys.platform == 'darwin':
+        BASE_DIR = Path.home() / "Library" / "Application Support" / "USBSpeedTest"
+    else:
+        BASE_DIR = Path.home() / ".local" / "share" / "usb-speedtest"
 
 REPORTS_DIR = BASE_DIR / "reports"
 LOGS_DIR = BASE_DIR / "logs"
@@ -39,6 +55,12 @@ DEFAULT_CONFIG = {
         "auto_save": True,
         "include_charts": True,
         "include_device_history": True
+    },
+    "ai_chatbot": {
+        "provider": "ollama",
+        "api_key": "",
+        "model": "llama3",
+        "endpoint": "http://localhost:11434"
     }
 }
 
