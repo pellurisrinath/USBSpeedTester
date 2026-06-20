@@ -129,7 +129,10 @@ class BackendAPI:
                     "used_space_gb": used_gb,
                     "free_space_gb": free_gb,
                     "percent_used": round((used_gb / total_gb) * 100, 1) if total_gb > 0 else 0,
-                    "is_mounted": len(dev["volumes"]) > 0
+                    "is_mounted": len(dev["volumes"]) > 0,
+                    "driver_provider": dev.get("driver_provider", "Unknown"),
+                    "driver_version": dev.get("driver_version", "Unknown"),
+                    "driver_date": dev.get("driver_date", "Unknown")
                 })
                 
             return self._response(True, {
@@ -154,7 +157,10 @@ class BackendAPI:
                     "speed": "USB 2.0/3.0",
                     "protocol": per["class"],
                     "is_removable": True,
-                    "mount_point": None
+                    "mount_point": None,
+                    "driver_provider": per.get("driver_provider", "Unknown"),
+                    "driver_version": per.get("driver_version", "Unknown"),
+                    "driver_date": per.get("driver_date", "Unknown")
                 })
                 
             return self._response(True, {
@@ -563,10 +569,41 @@ class BackendAPI:
             if devices_data["success"] and devices_data["data"]:
                 devs = devices_data["data"]["devices"]
                 devices_summary = "\n".join([
-                    f"- Name: {d['name']}, Type: {d['device_type']}, Mount: {d.get('mount_point') or 'N/A'}, FileSystem: {d.get('file_system') or 'N/A'}, Size: {d.get('total_space_gb') or 'N/A'} GB (Free: {d.get('free_space_gb') or 'N/A'} GB)"
+                    f"- Name: {d['name']}, Type: {d['device_type']}, Mount: {d.get('mount_point') or 'N/A'}, FileSystem: {d.get('file_system') or 'N/A'}, Size: {d.get('total_space_gb') or 'N/A'} GB (Free: {d.get('free_space_gb') or 'N/A'} GB), Driver: {d.get('driver_provider', 'Unknown')} v{d.get('driver_version', 'Unknown')} ({d.get('driver_date', 'Unknown')})"
                     for d in devs
                 ])
             
+            # C. Check if user is asking for device specs
+            online_search_context = ""
+            is_asking_specs = any(keyword in normalized_msg for keyword in ["spec", "specs", "specification", "online", "details", "speed", "performance", "info", "about"])
+            
+            if is_asking_specs and devices_data["success"] and devices_data["data"]:
+                devs = devices_data["data"]["devices"]
+                matched_dev_names = []
+                for d in devs:
+                    name = d["name"]
+                    cleaned_name = re.sub(r'[^a-zA-Z0-9\s]', '', name.lower())
+                    words = [w for w in cleaned_name.split() if len(w) > 2 and w not in ["usb", "device", "disk", "drive", "external", "mass", "storage", "generic"]]
+                    mentioned = name.lower() in normalized_msg or (words and any(word in normalized_msg for word in words))
+                    if mentioned:
+                        matched_dev_names.append(name)
+                
+                # Default to searching for connected USB devices if no name is specified but "device/usb/drive/disk" is asked
+                if not matched_dev_names and any(kw in normalized_msg for kw in ["device", "usb", "drive", "disk"]):
+                    matched_dev_names = [d["name"] for d in devs if d["name"].lower() not in ["usb mass storage device", "usb composite device", "unknown"]]
+                
+                # Perform search
+                from modules.online_search import search_device_specs
+                search_blocks = []
+                for dev_name in matched_dev_names[:2]:
+                    snippets = search_device_specs(dev_name)
+                    if snippets:
+                        snippets_str = "\n".join([f"- {s}" for s in snippets])
+                        search_blocks.append(f"Web Search Reference for '{dev_name}' specifications:\n{snippets_str}")
+                
+                if search_blocks:
+                    online_search_context = "\n\n" + "\n\n".join(search_blocks)
+
             recent_benchmarks = ""
             if test_history:
                 recent_benchmarks = "\n".join([
@@ -581,15 +618,17 @@ class BackendAPI:
                 "Your goal is to help users analyze speed test results, explain USB hardware protocols/standards, and troubleshoot USB-related issues.\n\n"
                 "Current System Context:\n"
                 f"Connected USB Devices:\n{devices_summary or 'No USB devices detected.'}\n\n"
-                f"Recent Benchmark Runs in this Session:\n{recent_benchmarks}\n\n"
+                f"Recent Benchmark Runs in this Session:\n{recent_benchmarks}"
+                f"{online_search_context}\n\n"
                 "Guidelines:\n"
                 "1. Answer ONLY questions pertaining to this application, its features, USB technology, storage protocols, or hardware diagnostics/troubleshooting.\n"
                 "2. If the user asks about anything out of scope (such as generating images, generating PDFs, movies, writing general non-USB code, or general knowledge), you must NOT answer. Instead, respond with exactly: 'This request is outside the scope of my usage as the USB Speed Utility AI Assistant.'\n"
                 "3. If the user asks you to write an email to report USB slowness or issues, you are ALLOWED to write the email template. However, you must NOT write general emails or general-purpose Python scripts for other projects. If the user asks for those, politely refuse or ask for more details on how it relates to USB diagnostics.\n"
                 "4. If the user uses any profane, vulgar, or inappropriate language, refuse to answer and state: 'You have used a restricted word. This query will be marked and sent for review.'\n"
-                "5. Give direct, practical, technical yet easy-to-understand explanations.\n"
-                "6. Suggest actionable steps if a device appears slow (e.g., check port types USB 2.0 vs 3.0, formatting options FAT32/exFAT/NTFS, cluster sizes).\n"
-                "7. Keep answers concise, and format code or command instructions cleanly using Markdown blocks."
+                "5. When asked about device specifications or performance, utilize the provided 'Web Search Reference' snippets and device driver details in the System Context to supply correct, realistic specifications.\n"
+                "6. Give direct, practical, technical yet easy-to-understand explanations.\n"
+                "7. Suggest actionable steps if a device appears slow (e.g., check port types USB 2.0 vs 3.0, formatting options FAT32/exFAT/NTFS, cluster sizes).\n"
+                "8. Keep answers concise, and format code or command instructions cleanly using Markdown blocks."
             )
             
             # Inject system prompt into history (remove any pre-existing system prompt to avoid conflict)
