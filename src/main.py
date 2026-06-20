@@ -595,13 +595,19 @@ class BackendAPI:
                 # Perform search
                 from modules.online_search import search_device_specs
                 search_blocks = []
+                search_failed = False
                 for dev_name in matched_dev_names[:2]:
                     snippets = search_device_specs(dev_name)
-                    if snippets:
+                    if snippets is None:
+                        search_failed = True
+                        break
+                    elif snippets:
                         snippets_str = "\n".join([f"- {s}" for s in snippets])
                         search_blocks.append(f"Web Search Reference for '{dev_name}' specifications:\n{snippets_str}")
                 
-                if search_blocks:
+                if search_failed:
+                    online_search_context = "\n\nWeb Search Reference:\nOffline - The system was unable to connect online to fetch specifications."
+                elif search_blocks:
                     online_search_context = "\n\n" + "\n\n".join(search_blocks)
 
             recent_benchmarks = ""
@@ -626,9 +632,10 @@ class BackendAPI:
                 "3. If the user asks you to write an email to report USB slowness or issues, you are ALLOWED to write the email template. However, you must NOT write general emails or general-purpose Python scripts for other projects. If the user asks for those, politely refuse or ask for more details on how it relates to USB diagnostics.\n"
                 "4. If the user uses any profane, vulgar, or inappropriate language, refuse to answer and state: 'You have used a restricted word. This query will be marked and sent for review.'\n"
                 "5. When asked about device specifications or performance, utilize the provided 'Web Search Reference' snippets and device driver details in the System Context to supply correct, realistic specifications.\n"
-                "6. Give direct, practical, technical yet easy-to-understand explanations.\n"
-                "7. Suggest actionable steps if a device appears slow (e.g., check port types USB 2.0 vs 3.0, formatting options FAT32/exFAT/NTFS, cluster sizes).\n"
-                "8. Keep answers concise, and format code or command instructions cleanly using Markdown blocks."
+                "6. If the 'Web Search Reference' indicates that the system is Offline (unable to connect online), you MUST report back to the user stating that you cannot fetch specifications from online right now.\n"
+                "7. Give direct, practical, technical yet easy-to-understand explanations.\n"
+                "8. Suggest actionable steps if a device appears slow (e.g., check port types USB 2.0 vs 3.0, formatting options FAT32/exFAT/NTFS, cluster sizes).\n"
+                "9. Keep answers concise, and format code or command instructions cleanly using Markdown blocks."
             )
             
             # Inject system prompt into history (remove any pre-existing system prompt to avoid conflict)

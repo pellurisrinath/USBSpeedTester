@@ -37,4 +37,4 @@ def search_device_specs(device_name):
             return results
     except Exception as e:
         print(f"Online specs search failed for '{device_name}': {e}", file=sys.stderr)
-        return []
+        return None
