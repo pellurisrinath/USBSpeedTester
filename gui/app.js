@@ -916,6 +916,23 @@ class USBSpeedTestApp {
         } else {
             // Render markdown to HTML
             bubble.innerHTML = this.formatMarkdown(text);
+            
+            // Add action row with copy button
+            const actionRow = document.createElement('div');
+            actionRow.className = 'message-actions';
+            
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-msg-btn';
+            copyBtn.title = 'Copy message to clipboard';
+            copyBtn.innerHTML = '📋 Copy';
+            copyBtn.onclick = (e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(text);
+                copyBtn.innerHTML = '✅ Copied!';
+                setTimeout(() => copyBtn.innerHTML = '📋 Copy', 2000);
+            };
+            actionRow.appendChild(copyBtn);
+            bubble.appendChild(actionRow);
         }
 
         msgDiv.appendChild(bubble);

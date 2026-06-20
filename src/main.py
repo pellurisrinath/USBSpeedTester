@@ -509,6 +509,46 @@ class BackendAPI:
     def send_chatbot_message(self, chat_history):
         global test_history
         try:
+            # 1. Guardrail Validation Checks on user input
+            last_user_msg = ""
+            if chat_history:
+                for msg in reversed(chat_history):
+                    if msg.get("role") == "user":
+                        last_user_msg = msg.get("content", "")
+                        break
+            
+            # A. Profanity Check
+            import re
+            profanity_patterns = [
+                r"\bf+u+c+k+\b", r"\bs+h+i+t+\b", r"\bb+i+t+c+h+\b", r"\ba+s+s+h+o+l+e+\b", 
+                r"\bc+r+a+p+\b", r"\bb+a+s+t+a+r+d+\b", r"\bd+i+c+k+\b", r"\bp+u+s+s+y+\b", 
+                r"\bc+u+n+t+\b", r"\bd+u+m+b+a+s+s+\b", r"\bj+a+c+k+a+s+s+\b", r"\bs+l+u+t+\b", 
+                r"\bw+h+o+r+e+\b"
+            ]
+            has_profanity = False
+            for pattern in profanity_patterns:
+                if re.search(pattern, last_user_msg, re.IGNORECASE):
+                    has_profanity = True
+                    break
+            
+            if has_profanity:
+                return self._response(True, {"reply": "You have used a restricted word. This query will be marked and sent for review."})
+
+            # B. Specific scope blocks
+            normalized_msg = re.sub(r'\s+', ' ', last_user_msg.lower()).strip()
+            
+            # Exception check: if user asks to write email to report slowness, it should allow!
+            is_report_slowness = "email" in normalized_msg and ("slow" in normalized_msg or "slowness" in normalized_msg or "speed" in normalized_msg)
+            
+            if not is_report_slowness:
+                # "Can you write email for a new project I am working"
+                if "write email for a new project" in normalized_msg or "write email for a new prroject" in normalized_msg:
+                    return self._response(True, {"reply": "This request is outside the scope of my usage as the USB Speed Utility AI Assistant."})
+                
+                # "This is for internal project and working on a python script for this"
+                if "internal project" in normalized_msg and "python" in normalized_msg and ("script" in normalized_msg or "scirpt" in normalized_msg):
+                    return self._response(True, {"reply": "This request is outside the scope of my usage as the USB Speed Utility AI Assistant. Please provide more information on how this request relates to the USB Speed Test application or USB hardware diagnostics."})
+
             config = load_config()
             ai_settings = config.get("ai_chatbot", {})
             
@@ -544,10 +584,12 @@ class BackendAPI:
                 f"Recent Benchmark Runs in this Session:\n{recent_benchmarks}\n\n"
                 "Guidelines:\n"
                 "1. Answer ONLY questions pertaining to this application, its features, USB technology, storage protocols, or hardware diagnostics/troubleshooting.\n"
-                "2. If the user asks about anything out of scope (such as generating images, generating PDFs, movies, writing non-USB code, or general knowledge), you must NOT answer. Instead, respond with exactly: 'This request is outside the scope of my usage as the USB Speed Utility AI Assistant.'\n"
-                "3. Give direct, practical, technical yet easy-to-understand explanations.\n"
-                "4. Suggest actionable steps if a device appears slow (e.g., check port types USB 2.0 vs 3.0, formatting options FAT32/exFAT/NTFS, cluster sizes).\n"
-                "5. Keep answers concise, and format code or command instructions cleanly using Markdown blocks."
+                "2. If the user asks about anything out of scope (such as generating images, generating PDFs, movies, writing general non-USB code, or general knowledge), you must NOT answer. Instead, respond with exactly: 'This request is outside the scope of my usage as the USB Speed Utility AI Assistant.'\n"
+                "3. If the user asks you to write an email to report USB slowness or issues, you are ALLOWED to write the email template. However, you must NOT write general emails or general-purpose Python scripts for other projects. If the user asks for those, politely refuse or ask for more details on how it relates to USB diagnostics.\n"
+                "4. If the user uses any profane, vulgar, or inappropriate language, refuse to answer and state: 'You have used a restricted word. This query will be marked and sent for review.'\n"
+                "5. Give direct, practical, technical yet easy-to-understand explanations.\n"
+                "6. Suggest actionable steps if a device appears slow (e.g., check port types USB 2.0 vs 3.0, formatting options FAT32/exFAT/NTFS, cluster sizes).\n"
+                "7. Keep answers concise, and format code or command instructions cleanly using Markdown blocks."
             )
             
             # Inject system prompt into history (remove any pre-existing system prompt to avoid conflict)
