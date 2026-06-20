@@ -11,11 +11,57 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 sys.path.append(str(Path(__file__).parent / "modules"))
 
-from config import REPORTS_DIR, BASE_DIR, load_config, save_config
+from config import REPORTS_DIR, LOGS_DIR, COMPARISONS_DIR, BASE_DIR, load_config, save_config, GUARDRAILS_FILE
 from modules.usb_detector import get_usb_storage_devices, get_usb_peripherals
 from modules.speed_test import perform_speed_test, generate_html_report, generate_comparison_html_report
 from modules.platform_utils import get_platform, open_report_file, open_file_explorer
+from modules.ai_client import AIClient
 import modules.monitor_service as monitor_service
+
+class Tee:
+    def __init__(self, stream, file):
+        self.stream = stream
+        self.file = file
+
+    def write(self, data):
+        if self.stream:
+            try:
+                self.stream.write(data)
+                self.stream.flush()
+            except:
+                pass
+        if self.file:
+            try:
+                self.file.write(data)
+                self.file.flush()
+            except:
+                pass
+
+    def flush(self):
+        if self.stream:
+            try:
+                self.stream.flush()
+            except:
+                pass
+        if self.file:
+            try:
+                self.file.flush()
+            except:
+                pass
+
+def setup_logging():
+    from config import ensure_directories
+    ensure_directories()
+    log_file_path = LOGS_DIR / "app.log"
+    try:
+        log_file = open(log_file_path, "a", encoding="utf-8")
+        log_file.write(f"\n--- Application started at {datetime.datetime.now().isoformat()} ---\n")
+        log_file.flush()
+        
+        sys.stdout = Tee(sys.stdout, log_file)
+        sys.stderr = Tee(sys.stderr, log_file)
+    except Exception as e:
+        sys.stderr.write(f"Failed to setup logging: {e}\n")
 
 # Global State
 app_window = None
@@ -83,7 +129,10 @@ class BackendAPI:
                     "used_space_gb": used_gb,
                     "free_space_gb": free_gb,
                     "percent_used": round((used_gb / total_gb) * 100, 1) if total_gb > 0 else 0,
-                    "is_mounted": len(dev["volumes"]) > 0
+                    "is_mounted": len(dev["volumes"]) > 0,
+                    "driver_provider": dev.get("driver_provider", "Unknown"),
+                    "driver_version": dev.get("driver_version", "Unknown"),
+                    "driver_date": dev.get("driver_date", "Unknown")
                 })
                 
             return self._response(True, {
@@ -108,7 +157,10 @@ class BackendAPI:
                     "speed": "USB 2.0/3.0",
                     "protocol": per["class"],
                     "is_removable": True,
-                    "mount_point": None
+                    "mount_point": None,
+                    "driver_provider": per.get("driver_provider", "Unknown"),
+                    "driver_version": per.get("driver_version", "Unknown"),
+                    "driver_date": per.get("driver_date", "Unknown")
                 })
                 
             return self._response(True, {
@@ -320,6 +372,7 @@ class BackendAPI:
     def get_reports_list(self, limit=50):
         try:
             reports = []
+            # Load device reports
             if REPORTS_DIR.exists():
                 for filename in os.listdir(REPORTS_DIR):
                     if filename.endswith(".html"):
@@ -327,12 +380,27 @@ class BackendAPI:
                         created = datetime.datetime.fromtimestamp(os.path.getctime(path)).isoformat() + "Z"
                         reports.append({
                             "report_id": f"report-file-{uuid.uuid4().hex[:4]}",
-                            "report_type": "comparison" if "compare" in filename else "device",
+                            "report_type": "device",
                             "file_name": filename,
                             "file_path": str(path),
                             "file_size_bytes": os.path.getsize(path),
                             "created_timestamp": created,
                             "device_name": filename.split("_")[1] if "_" in filename else "Benchmark"
+                        })
+            # Load comparisons
+            if COMPARISONS_DIR.exists():
+                for filename in os.listdir(COMPARISONS_DIR):
+                    if filename.endswith(".html"):
+                        path = COMPARISONS_DIR / filename
+                        created = datetime.datetime.fromtimestamp(os.path.getctime(path)).isoformat() + "Z"
+                        reports.append({
+                            "report_id": f"report-file-{uuid.uuid4().hex[:4]}",
+                            "report_type": "comparison",
+                            "file_name": filename,
+                            "file_path": str(path),
+                            "file_size_bytes": os.path.getsize(path),
+                            "created_timestamp": created,
+                            "device_name": "Comparison"
                         })
             # Sort reports by creation time descending
             reports.sort(key=lambda x: x["created_timestamp"], reverse=True)
@@ -393,10 +461,217 @@ class BackendAPI:
             return self._response(True, {"message": "Configuration updated successfully"})
         return self._response(False, error="Failed to write configuration file")
 
+    # 17b. Export Configuration
+    def export_configuration(self):
+        global app_window
+        import socket
+        import time
+        import json
+        
+        try:
+            if not app_window:
+                return self._response(False, error="Application window is not ready.")
+                
+            # format: USBSpeedTest_<MachineName>_<ddMMMyyyy>_<HHmm>_<timezone>.cfg
+            machine_name = socket.gethostname().lower()
+            now = datetime.datetime.now()
+            date_str = now.strftime("%d%B%Y") # e.g. 20June2026
+            time_str = now.strftime("%H%M")
+            tz_str = time.tzname[time.daylight].lower()
+            default_filename = f"USBSpeedTest_{machine_name}_{date_str}_{time_str}_{tz_str}.cfg"
+            
+            file_types = ('Configuration Files (*.cfg)', 'All Files (*.*)')
+            
+            save_path = app_window.create_file_dialog(
+                dialog_type=webview.SAVE_DIALOG,
+                directory=os.path.expanduser("~"),
+                save_filename=default_filename,
+                file_types=file_types
+            )
+            
+            if not save_path:
+                return self._response(False, error="Export cancelled by user.")
+                
+            path_str = save_path[0] if isinstance(save_path, (list, tuple)) else save_path
+            if not path_str:
+                return self._response(False, error="Export cancelled by user.")
+                
+            current_config = load_config()
+            
+            with open(path_str, 'w', encoding='utf-8') as f:
+                json.dump(current_config, f, indent=4)
+                
+            return self._response(True, {"message": "Configuration exported successfully", "path": path_str})
+            
+        except Exception as e:
+            return self._response(False, error=str(e))
+
     # 18. Open Path in File Explorer
     def open_path(self, path):
         success = open_file_explorer(path)
         return self._response(success, {"message": "Opened successfully"} if success else None, None if success else "Failed to open path")
+
+    # 19. Send Chatbot Message
+    def send_chatbot_message(self, chat_history):
+        global test_history
+        try:
+            # 1. Guardrail Validation Checks on user input
+            last_user_msg = ""
+            if chat_history:
+                for msg in reversed(chat_history):
+                    if msg.get("role") == "user":
+                        last_user_msg = msg.get("content", "")
+                        break
+            
+            # A. Profanity Check
+            import re
+            profanity_patterns = [
+                r"\bf+u+c+k+\b", r"\bs+h+i+t+\b", r"\bb+i+t+c+h+\b", r"\ba+s+s+h+o+l+e+\b", 
+                r"\bc+r+a+p+\b", r"\bb+a+s+t+a+r+d+\b", r"\bd+i+c+k+\b", r"\bp+u+s+s+y+\b", 
+                r"\bc+u+n+t+\b", r"\bd+u+m+b+a+s+s+\b", r"\bj+a+c+k+a+s+s+\b", r"\bs+l+u+t+\b", 
+                r"\bw+h+o+r+e+\b"
+            ]
+            has_profanity = False
+            for pattern in profanity_patterns:
+                if re.search(pattern, last_user_msg, re.IGNORECASE):
+                    has_profanity = True
+                    break
+            
+            if has_profanity:
+                return self._response(True, {"reply": "You have used a restricted word. This query will be marked and sent for review."})
+
+            # B. Specific scope blocks
+            normalized_msg = re.sub(r'\s+', ' ', last_user_msg.lower()).strip()
+            
+            # Exception check: if user asks to write email to report slowness, it should allow!
+            is_report_slowness = "email" in normalized_msg and ("slow" in normalized_msg or "slowness" in normalized_msg or "speed" in normalized_msg)
+            
+            if not is_report_slowness:
+                # "Can you write email for a new project I am working"
+                if "write email for a new project" in normalized_msg or "write email for a new prroject" in normalized_msg:
+                    return self._response(True, {"reply": "This request is outside the scope of my usage as the USB Speed Utility AI Assistant."})
+                
+                # "This is for internal project and working on a python script for this"
+                if "internal project" in normalized_msg and "python" in normalized_msg and ("script" in normalized_msg or "scirpt" in normalized_msg):
+                    return self._response(True, {"reply": "This request is outside the scope of my usage as the USB Speed Utility AI Assistant. Please provide more information on how this request relates to the USB Speed Test application or USB hardware diagnostics."})
+
+            config = load_config()
+            ai_settings = config.get("ai_chatbot", {})
+            
+            provider = ai_settings.get("provider", "ollama")
+            api_key = ai_settings.get("api_key", "")
+            model = ai_settings.get("model", "llama3")
+            endpoint = ai_settings.get("endpoint", "http://localhost:11434")
+            
+            # Enrich system prompt with active context
+            devices_data = self.get_all_devices()
+            devices_summary = ""
+            if devices_data["success"] and devices_data["data"]:
+                devs = devices_data["data"]["devices"]
+                devices_summary = "\n".join([
+                    f"- Name: {d['name']}, Type: {d['device_type']}, Mount: {d.get('mount_point') or 'N/A'}, FileSystem: {d.get('file_system') or 'N/A'}, Size: {d.get('total_space_gb') or 'N/A'} GB (Free: {d.get('free_space_gb') or 'N/A'} GB), Driver: {d.get('driver_provider', 'Unknown')} v{d.get('driver_version', 'Unknown')} ({d.get('driver_date', 'Unknown')})"
+                    for d in devs
+                ])
+            
+            # C. Check if user is asking for device specs
+            online_search_context = ""
+            is_asking_specs = any(keyword in normalized_msg for keyword in ["spec", "specs", "specification", "online", "details", "speed", "performance", "info", "about"])
+            
+            if is_asking_specs and devices_data["success"] and devices_data["data"]:
+                devs = devices_data["data"]["devices"]
+                matched_dev_names = []
+                for d in devs:
+                    name = d["name"]
+                    cleaned_name = re.sub(r'[^a-zA-Z0-9\s]', '', name.lower())
+                    words = [w for w in cleaned_name.split() if len(w) > 2 and w not in ["usb", "device", "disk", "drive", "external", "mass", "storage", "generic"]]
+                    mentioned = name.lower() in normalized_msg or (words and any(word in normalized_msg for word in words))
+                    if mentioned:
+                        matched_dev_names.append(name)
+                
+                # Default to searching for connected USB devices if no name is specified but "device/usb/drive/disk" is asked
+                if not matched_dev_names and any(kw in normalized_msg for kw in ["device", "usb", "drive", "disk"]):
+                    matched_dev_names = [d["name"] for d in devs if d["name"].lower() not in ["usb mass storage device", "usb composite device", "unknown"]]
+                
+                # Perform search
+                from modules.online_search import search_device_specs
+                search_blocks = []
+                search_failed = False
+                for dev_name in matched_dev_names[:2]:
+                    snippets = search_device_specs(dev_name)
+                    if snippets is None:
+                        search_failed = True
+                        break
+                    elif snippets:
+                        snippets_str = "\n".join([f"- {s}" for s in snippets])
+                        search_blocks.append(f"Web Search Reference for '{dev_name}' specifications:\n{snippets_str}")
+                
+                if search_failed:
+                    online_search_context = "\n\nWeb Search Reference:\nOffline - The system was unable to connect online to fetch specifications."
+                elif search_blocks:
+                    online_search_context = "\n\n" + "\n\n".join(search_blocks)
+
+            recent_benchmarks = ""
+            if test_history:
+                recent_benchmarks = "\n".join([
+                    f"- Run: {t['device_name']} on {t['device_path']}. Read: {t['read_speed_mbps']:.2f} MB/s, Write: {t['write_speed_mbps']:.2f} MB/s (File size: {t['test_size_mb']} MB, System: {t['file_system']})"
+                    for t in test_history[-5:]
+                ])
+            else:
+                recent_benchmarks = "No speed benchmarks have been run in this session yet."
+                
+            # Load Guardrails.md dynamically from disk
+            guardrails_content = ""
+            try:
+                if GUARDRAILS_FILE.exists():
+                    with open(GUARDRAILS_FILE, 'r', encoding='utf-8') as gf:
+                        guardrails_content = gf.read()
+            except Exception as ge:
+                print(f"Error reading Guardrails.md: {ge}", file=sys.stderr)
+
+            if not guardrails_content:
+                guardrails_content = "1. Answer ONLY questions related to this application and its features."
+
+            system_prompt = (
+                "You are the USB Speed Utility AI Assistant, a helpful and technical assistant integrated directly into a desktop USB diagnostics tool.\n"
+                "Your goal is to help users analyze speed test results, explain USB hardware protocols/standards, and troubleshoot USB-related issues.\n\n"
+                "IMPORTANT: You must use the following Guardrails (loaded dynamically from C:\\ProgramData\\USBSpeedTest\\Guardrails.md) as a strict pre-requisite when processing any user query:\n"
+                f"{guardrails_content}\n\n"
+                "Current System Context:\n"
+                f"Connected USB Devices:\n{devices_summary or 'No USB devices detected.'}\n\n"
+                f"Recent Benchmark Runs in this Session:\n{recent_benchmarks}"
+                f"{online_search_context}\n\n"
+                "Guidelines:\n"
+                "1. Refer to the Guardrails as your primary instructions and constraints.\n"
+                "2. Give direct, practical, technical yet easy-to-understand explanations.\n"
+                "3. Suggest actionable steps if a device appears slow (e.g., check port types USB 2.0 vs 3.0, formatting options FAT32/exFAT/NTFS, cluster sizes).\n"
+                "4. Keep answers concise, and format code or command instructions cleanly using Markdown blocks."
+            )
+            
+            # Inject system prompt into history (remove any pre-existing system prompt to avoid conflict)
+            full_history = [{"role": "system", "content": system_prompt}]
+            for msg in chat_history:
+                if msg["role"] != "system":
+                    full_history.append(msg)
+                    
+            client = AIClient(provider, api_key, model, endpoint)
+            reply = client.get_response(full_history)
+            
+            return self._response(True, {"reply": reply})
+        except Exception as e:
+            return self._response(False, error=str(e))
+
+    # 20. Test LLM Connection
+    def test_llm_connection(self, provider, api_key, model, endpoint):
+        try:
+            client = AIClient(provider, api_key, model, endpoint)
+            test_history = [{"role": "user", "content": "Hello! Reply with exactly the word 'SUCCESS' and nothing else."}]
+            reply = client.get_response(test_history)
+            
+            if reply:
+                return self._response(True, {"reply": reply.strip()})
+            return self._response(False, error="Received empty response from the provider.")
+        except Exception as e:
+            return self._response(False, error=str(e))
 
 
 def show_app_window():
@@ -411,6 +686,9 @@ def exit_app():
 
 def main():
     global app_window
+    
+    # Initialize logging to file
+    setup_logging()
     
     # Initialize Configuration folders
     ensure_directories = load_config()

@@ -6,11 +6,11 @@ from pathlib import Path
 
 # Try to import from parent config if running as package
 try:
-    from config import REPORTS_DIR
+    from config import REPORTS_DIR, COMPARISONS_DIR
 except ImportError:
     # Fallback to local import relative to folder structure
     sys.path.append(str(Path(__file__).parent.parent))
-    from config import REPORTS_DIR
+    from config import REPORTS_DIR, COMPARISONS_DIR
 
 def perform_speed_test(mount_point, test_file_size_mb=50, progress_callback=None):
     """
@@ -553,7 +553,7 @@ def generate_comparison_html_report(test_runs):
     fastest_overall = max(test_runs, key=lambda t: t["results"]["read_speed"] + t["results"]["write_speed"])
     
     # Target directory from configuration
-    report_dir = str(REPORTS_DIR)
+    report_dir = str(COMPARISONS_DIR)
         
     report_filename = f"compare_report_{file_timestamp}.html"
     report_path = os.path.join(report_dir, report_filename)

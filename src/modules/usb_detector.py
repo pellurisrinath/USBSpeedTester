@@ -12,36 +12,74 @@ def get_usb_storage_devices():
         # On Windows, use PowerShell to get USB storage disks and partitions
         try:
             ps_script = """
+            # Pre-fetch all signed drivers once into a hashtable for fast per-device lookup
+            $allDrivers = @{}
+            try {
+                Get-CimInstance Win32_PnPSignedDriver -ErrorAction SilentlyContinue | ForEach-Object {
+                    if ($_.DeviceID) { $allDrivers[$_.DeviceID] = $_ }
+                }
+            } catch {}
+
+            # Pre-fetch all disk drives for PNP ID mapping
+            $allDiskDrives = @{}
+            try {
+                Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue | ForEach-Object {
+                    $allDiskDrives[$_.Index] = $_.PNPDeviceID
+                }
+            } catch {}
+
             Get-Disk | Where-Object BusType -eq 'USB' | ForEach-Object {
                 $disk = $_
-                $parts = Get-Partition -DiskNumber $disk.Number
+                $parts = Get-Partition -DiskNumber $disk.Number -ErrorAction SilentlyContinue
                 $volumes = @()
-                foreach ($part in $parts) {
-                    if ($part.DriveLetter) {
-                        try {
-                            $vol = Get-Volume -DriveLetter $part.DriveLetter -ErrorAction Stop
-                            $volumes += [PSCustomObject]@{
-                                DriveLetter = $part.DriveLetter
-                                Label = $vol.FileSystemLabel
-                                Size = $vol.Size
-                                FreeSpace = $vol.SizeRemaining
-                                FileSystem = $vol.FileSystem
+                if ($parts) {
+                    foreach ($part in $parts) {
+                        if ($part.DriveLetter) {
+                            try {
+                                $vol = Get-Volume -DriveLetter $part.DriveLetter -ErrorAction Stop
+                                $volumes += [PSCustomObject]@{
+                                    DriveLetter = $part.DriveLetter
+                                    Label = $vol.FileSystemLabel
+                                    Size = $vol.Size
+                                    FreeSpace = $vol.SizeRemaining
+                                    FileSystem = $vol.FileSystem
+                                }
+                            } catch {
+                                # Volume might not be formatted or mounted properly
                             }
-                        } catch {
-                            # Volume might not be formatted or mounted properly
                         }
                     }
                 }
+
+                # Fast driver lookup via pre-fetched hashtable
+                $driverProvider = "Unknown"
+                $driverVersion = "Unknown"
+                $driverDate = "Unknown"
+                try {
+                    $pnpId = $allDiskDrives[$disk.Number]
+                    if ($pnpId -and $allDrivers.ContainsKey($pnpId)) {
+                        $drv = $allDrivers[$pnpId]
+                        $driverProvider = $drv.DriverProviderName
+                        $driverVersion = $drv.DriverVersion
+                        if ($drv.DriverDate) {
+                            $driverDate = $drv.DriverDate.ToString("yyyy-MM-dd")
+                        }
+                    }
+                } catch {}
+
                 [PSCustomObject]@{
                     DiskNumber = $disk.Number
                     Model = $disk.FriendlyName
                     Size = $disk.Size
                     SerialNumber = $disk.SerialNumber
                     Volumes = $volumes
+                    DriverProvider = $driverProvider
+                    DriverVersion = $driverVersion
+                    DriverDate = $driverDate
                 }
             } | ConvertTo-Json -Depth 3
             """
-            result = subprocess.run(["powershell", "-Command", ps_script], capture_output=True, text=True, check=True, creationflags=0x08000000)
+            result = subprocess.run(["powershell", "-Command", ps_script], capture_output=True, text=True, timeout=30, creationflags=0x08000000)
             output = result.stdout.strip()
             
             if output:
@@ -58,7 +96,10 @@ def get_usb_storage_devices():
                         "model": disk.get("Model", "Unknown USB Disk"),
                         "size": disk.get("Size", 0),
                         "serial": disk.get("SerialNumber", "Unknown").strip(),
-                        "volumes": []
+                        "volumes": [],
+                        "driver_provider": disk.get("DriverProvider", "Unknown"),
+                        "driver_version": disk.get("DriverVersion", "Unknown"),
+                        "driver_date": disk.get("DriverDate", "Unknown")
                     }
                     
                     vols = disk.get("Volumes")
@@ -119,7 +160,10 @@ def get_usb_storage_devices():
                             "model": info_data.get('DeviceModel', 'USB Storage Device'),
                             "size": info_data.get('TotalSize', 0),
                             "serial": info_data.get('VolumeSerialNumber', 'Unknown'),
-                            "volumes": []
+                            "volumes": [],
+                            "driver_provider": "Apple",
+                            "driver_version": "System Default",
+                            "driver_date": "Unknown"
                         }
                         
                         # Find mounted partitions
@@ -175,7 +219,10 @@ def get_usb_storage_devices():
                         "model": dev.get("model", "Unknown USB Disk"),
                         "size": dev.get("size", "0"),
                         "serial": "Unknown",
-                        "volumes": []
+                        "volumes": [],
+                        "driver_provider": "Linux Kernel",
+                        "driver_version": "System Default",
+                        "driver_date": "Unknown"
                     }
                     
                     # Gather mount points
@@ -213,9 +260,40 @@ def get_usb_peripherals():
     if sys.platform == 'win32':
         try:
             ps_script = """
-            Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -like 'USB*' -and $_.Class -ne 'DiskDrive' -and $_.Class -ne 'Volume' } | Select-Object FriendlyName, Class, InstanceId | ConvertTo-Json
+            # Pre-fetch all signed drivers once into a hashtable for fast per-device lookup
+            $allDrivers = @{}
+            try {
+                Get-CimInstance Win32_PnPSignedDriver -ErrorAction SilentlyContinue | ForEach-Object {
+                    if ($_.DeviceID) { $allDrivers[$_.DeviceID] = $_ }
+                }
+            } catch {}
+
+            Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | Where-Object { $_.InstanceId -like 'USB*' -and $_.Class -ne 'DiskDrive' -and $_.Class -ne 'Volume' } | ForEach-Object {
+                $dev = $_
+                $driverProvider = "Unknown"
+                $driverVersion = "Unknown"
+                $driverDate = "Unknown"
+                try {
+                    if ($allDrivers.ContainsKey($dev.InstanceId)) {
+                        $drv = $allDrivers[$dev.InstanceId]
+                        $driverProvider = $drv.DriverProviderName
+                        $driverVersion = $drv.DriverVersion
+                        if ($drv.DriverDate) {
+                            $driverDate = $drv.DriverDate.ToString("yyyy-MM-dd")
+                        }
+                    }
+                } catch {}
+                [PSCustomObject]@{
+                    FriendlyName = $dev.FriendlyName
+                    Class = $dev.Class
+                    InstanceId = $dev.InstanceId
+                    DriverProvider = $driverProvider
+                    DriverVersion = $driverVersion
+                    DriverDate = $driverDate
+                }
+            } | ConvertTo-Json
             """
-            result = subprocess.run(["powershell", "-Command", ps_script], capture_output=True, text=True, check=True, creationflags=0x08000000)
+            result = subprocess.run(["powershell", "-Command", ps_script], capture_output=True, text=True, timeout=30, creationflags=0x08000000)
             output = result.stdout.strip()
             if output:
                 parsed = json.loads(output)
@@ -230,7 +308,10 @@ def get_usb_peripherals():
                         peripherals.append({
                             "name": name,
                             "class": dev.get("Class", "USB Device"),
-                            "id": dev.get("InstanceId", "")
+                            "id": dev.get("InstanceId", ""),
+                            "driver_provider": dev.get("DriverProvider", "Unknown"),
+                            "driver_version": dev.get("DriverVersion", "Unknown"),
+                            "driver_date": dev.get("DriverDate", "Unknown")
                         })
         except Exception as e:
             print(f"Error listing Windows USB peripherals: {e}", file=sys.stderr)
@@ -257,7 +338,10 @@ def get_usb_peripherals():
                             extracted.append({
                                 "name": name,
                                 "class": dev_class,
-                                "id": node.get('serial_num', '')
+                                "id": node.get('serial_num', ''),
+                                "driver_provider": "Apple",
+                                "driver_version": "System Default",
+                                "driver_date": "Unknown"
                             })
                         if 'usb_device' in node:
                             extracted.extend(extract_devices(node['usb_device']))
@@ -265,7 +349,17 @@ def get_usb_peripherals():
                 
                 all_devs = extract_devices(usb_info)
                 # Filter out generic hubs to keep peripherals list clean
-                peripherals = [d for d in all_devs if d["class"] != "USB Hub"]
+                peripherals = [
+                    {
+                        "name": d["name"],
+                        "class": d["class"],
+                        "id": d["id"],
+                        "driver_provider": d.get("driver_provider", "Apple"),
+                        "driver_version": d.get("driver_version", "System Default"),
+                        "driver_date": d.get("driver_date", "Unknown")
+                    }
+                    for d in all_devs if d["class"] != "USB Hub"
+                ]
         except Exception as e:
             print(f"Error listing macOS USB peripherals: {e}", file=sys.stderr)
             
@@ -278,7 +372,10 @@ def get_usb_peripherals():
                     peripherals.append({
                         "name": line.strip(),
                         "class": "USB Device",
-                        "id": ""
+                        "id": "",
+                        "driver_provider": "Linux Kernel",
+                        "driver_version": "System Default",
+                        "driver_date": "Unknown"
                     })
         except Exception as e:
             print(f"Error listing Linux USB peripherals: {e}", file=sys.stderr)
