@@ -28,11 +28,21 @@ class SetupInstaller:
         self.install_dir = Path("C:\\ProgramData\\USBSpeedTest")
         self.dest_exe = self.install_dir / "USBSpeedTest.exe"
         
+        # Initialize logging
+        self.log_verbose("=== USB Speed Test & Monitor Setup Started ===")
+        self.log_verbose(f"System Platform: {sys.platform}")
+        self.log_verbose(f"Python Version: {sys.version}")
+        self.log_verbose(f"Executable Mode (sys.frozen): {getattr(sys, 'frozen', False)}")
+        
         # Determine source exe path (bundled via PyInstaller)
         if hasattr(sys, '_MEIPASS'):
             self.source_exe = Path(sys._MEIPASS) / "USBSpeedTest.exe"
+            self.log_verbose(f"PyInstaller temporary extraction folder (_MEIPASS): {sys._MEIPASS}")
         else:
             self.source_exe = Path(__file__).parent.parent / "dist" / "USBSpeedTest.exe"
+            
+        self.log_verbose(f"Source Executable path resolved to: {self.source_exe}")
+        self.log_verbose(f"Destination Executable path resolved to: {self.dest_exe}")
 
         # Apply styles
         self.style = ttk.Style()
@@ -138,16 +148,29 @@ class SetupInstaller:
         )
         self.launch_check.pack(anchor=tk.W)
 
+    def log_verbose(self, message):
+        try:
+            self.install_dir.mkdir(parents=True, exist_ok=True)
+            log_path = self.install_dir / "setup_install.log"
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(f"[{timestamp}] {message}\n")
+            print(f"[{timestamp}] {message}")
+        except Exception as e:
+            sys.stderr.write(f"Failed to log message: {e}\n")
+
     def start_installation(self):
         # Disable buttons
         self.btn_install.config(state=tk.DISABLED)
         self.btn_cancel.config(state=tk.DISABLED)
         self.launch_check.config(state=tk.DISABLED)
         
+        self.log_verbose("User triggered start_installation(). Launching installation thread...")
         # Start install thread
         threading.Thread(target=self.install_process, daemon=True).start()
 
     def create_shortcut(self, target, shortcut_path, description="USB Speed Test & Monitor"):
+        self.log_verbose(f"Creating shortcut: '{shortcut_path}' pointing to '{target}'...")
         try:
             ps_command = (
                 f'$WshShell = New-Object -ComObject WScript.Shell; '
@@ -157,16 +180,25 @@ class SetupInstaller:
                 f'$Shortcut.WorkingDirectory = "{os.path.dirname(target)}"; '
                 f'$Shortcut.Save()'
             )
-            subprocess.run(["powershell", "-Command", ps_command], capture_output=True, check=True)
+            self.log_verbose(f"Executing PowerShell command: {ps_command}")
+            res = subprocess.run(["powershell", "-Command", ps_command], capture_output=True, text=True, check=True)
+            if res.stdout:
+                self.log_verbose(f"PowerShell stdout: {res.stdout.strip()}")
+            if res.stderr:
+                self.log_verbose(f"PowerShell stderr: {res.stderr.strip()}")
+            self.log_verbose(f"Shortcut created successfully at: '{shortcut_path}'")
             return True
         except Exception as e:
-            print(f"Failed to create shortcut: {e}")
+            import traceback
+            self.log_verbose(f"Failed to create shortcut at '{shortcut_path}': {e}\n{traceback.format_exc()}")
             return False
 
     def install_process(self):
+        self.log_verbose("--- Starting installation process thread ---")
         try:
             # 1. Check if source executable exists
             self.update_status("Locating installer payload...", 10)
+            self.log_verbose(f"Checking if source payload exists at '{self.source_exe}'...")
             time.sleep(0.5)
             
             if not os.path.exists(self.source_exe):
@@ -174,15 +206,21 @@ class SetupInstaller:
                     f"Installer payload not found at {self.source_exe}.\n"
                     "Please build the main executable first."
                 )
+            
+            payload_size = os.path.getsize(self.source_exe)
+            self.log_verbose(f"Installer payload located. Size: {payload_size} bytes.")
 
             # 2. Check if destination exe is locked/running
             self.update_status("Checking for running instances...", 20)
+            self.log_verbose(f"Checking if destination file '{self.dest_exe}' is write-accessible/locked...")
             if self.dest_exe.exists():
                 try:
                     # Attempt to open for writing in append mode to check if locked
                     with open(self.dest_exe, 'ab') as f:
                         pass
-                except IOError:
+                    self.log_verbose("Destination file is not locked.")
+                except IOError as ioe:
+                    self.log_verbose(f"Destination file locked: {ioe}. Prompting user to close app.")
                     self.update_status("Waiting for application to close...", 30)
                     response = messagebox.askretrycancel(
                         "File Lock Detected",
@@ -190,29 +228,37 @@ class SetupInstaller:
                         "Please close the application or exit it from the system tray, then click Retry."
                     )
                     if not response:
+                        self.log_verbose("User chose to cancel installation on file lock prompt.")
                         raise Exception("Installation cancelled: Application is running and cannot be overwritten.")
                     
                     # Double check
                     try:
                         with open(self.dest_exe, 'ab') as f:
                             pass
-                    except IOError:
+                        self.log_verbose("Destination file unlocked after user closed the app.")
+                    except IOError as ioe2:
+                        self.log_verbose(f"Destination file is still locked after user retry: {ioe2}")
                         raise Exception("Installation failed: Target executable is still locked. Please close it.")
 
             # 3. Create target directory
             self.update_status("Creating installation folder...", 40)
+            self.log_verbose(f"Ensuring installation directory exists: '{self.install_dir}'...")
             self.install_dir.mkdir(parents=True, exist_ok=True)
             time.sleep(0.3)
 
             # 4. Copy executable
             self.update_status("Deploying files (USBSpeedTest.exe)...", 60)
+            self.log_verbose(f"Copying source '{self.source_exe}' to destination '{self.dest_exe}'...")
             shutil.copy2(self.source_exe, self.dest_exe)
+            dest_size = os.path.getsize(self.dest_exe)
+            self.log_verbose(f"Copy completed successfully. Destination file size: {dest_size} bytes.")
             time.sleep(0.5)
 
             # 5. Create Shortcuts
             self.update_status("Creating shortcuts...", 80)
             userprofile = os.environ.get("USERPROFILE")
             appdata = os.environ.get("APPDATA")
+            self.log_verbose(f"Shortcut environment: USERPROFILE='{userprofile}', APPDATA='{appdata}'")
             
             shortcuts_created = 0
             if userprofile:
@@ -222,14 +268,18 @@ class SetupInstaller:
             
             if appdata:
                 startmenu_folder = Path(appdata) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
+                self.log_verbose(f"Creating Start Menu folder: '{startmenu_folder}'...")
                 startmenu_folder.mkdir(parents=True, exist_ok=True)
                 startmenu_lnk = startmenu_folder / "USB Speed Test & Monitor.lnk"
                 if self.create_shortcut(str(self.dest_exe), str(startmenu_lnk)):
                     shortcuts_created += 1
+                    
+            self.log_verbose(f"Shortcuts creation complete. Total created: {shortcuts_created}")
             time.sleep(0.3)
 
             # 6. Complete
             self.update_status("Installation completed successfully!", 100, COLOR_SUCCESS)
+            self.log_verbose("--- Installation completed successfully ---")
             
             # Switch buttons
             self.btn_cancel.config(text="Close", state=tk.NORMAL)
@@ -239,11 +289,16 @@ class SetupInstaller:
             # Launch application if requested
             if self.launch_var.get():
                 self.update_status("Launching application...", 100, COLOR_SUCCESS)
-                subprocess.Popen([str(self.dest_exe)], creationflags=subprocess.DETACHED_PROCESS)
+                self.log_verbose(f"Launching installed application in detached process: '{self.dest_exe}'...")
+                proc = subprocess.Popen([str(self.dest_exe)], creationflags=subprocess.DETACHED_PROCESS)
+                self.log_verbose(f"Detached process started. Process ID: {proc.pid}. Setup installer exiting.")
                 time.sleep(0.5)
                 self.root.quit()
 
         except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            self.log_verbose(f"CRITICAL ERROR: Installation failed: {e}\n{error_trace}")
             self.update_status("Error during installation.", 100, "#EF4444")
             messagebox.showerror("Installation Failed", str(e))
             self.btn_install.config(state=tk.NORMAL)
