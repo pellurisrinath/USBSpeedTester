@@ -8,7 +8,7 @@ This document details the walkthrough of the bug fixes and features added to res
 
 ### 1. AI Timeout & Logging Fixes
 *   **`src/modules/ai_client.py` [MODIFY]**:
-    *   Increased HTTP timeout from `30` to `120` seconds. Slow-running local LLMs (e.g., Gemma-4-12B or llama3 on local CPU/GPU) now have enough time to process system/chat history prompts and generate tokens without the connection failing with a timeout.
+    *   Increased HTTP timeout from `30` to `300` seconds (5 minutes). Slow-running local LLMs (e.g., Gemma-4-12B or llama3 on local CPU/GPU) now have plenty of time to process system/chat history prompts and generate reasoning/response tokens without the connection failing with a timeout.
 *   **`src/main.py` [MODIFY]**:
     *   Added standard stream redirection via a custom `Tee` class and `setup_logging()` function.
     *   All console output (stdout/stderr) from `pywebview`, helper scripts, and warnings are now mirrored to `app.log` in the persistent `logs/` directory.
