@@ -4,13 +4,17 @@ A premium, lightweight, cross-platform desktop application built with Python (`p
 
 ---
 
-## 📸 Screenshots
+## 🖥️ User Interface Tour
 
-> **[👉 View full Screenshots Gallery →](docs/SCREENSHOTS.md)**
->
-> The gallery covers all 8 sections of the app: Devices, Storage, Speed Test (4 stages), Comparison, HTML Report, Reports, AI Assistant (4 examples), and Application Settings.
+| | |
+|---|---|
+| 📸 **[View Full UI Tour with Screenshots →](docs/UserInterfaceTour.md)** | Devices · Storage · Speed Test · Comparison · Reports · AI Assistant · Settings |
 
-## 📸 Key Features
+> All 14 screenshots across 8 feature sections — click above to explore the full visual walkthrough.
+
+---
+
+## ✨ Key Features
 
 *   **USB Peripheral Analyzer**: Automatically lists all connected USB hardware (Storage Drives, Audio Devices, Cameras, Input Devices, and other peripherals) along with driver details (provider, version, date) using Windows PnP APIs, `diskutil` (macOS), or `lsusb` (Linux).
 *   **Speed Benchmarking**: Executes precise write and read tests with real-time speedometers. Enforces hardware cache flushes (`os.fsync`) to prevent RAM buffering from inflating benchmark results.
@@ -49,7 +53,8 @@ This repository maintains a clean, modular structure conforming to standard Pyth
 ├── docs/                       # Project documentation
 │   ├── images/                 # User interface screenshots (14 images)
 │   ├── ProjectDocs/            # BRD, PRD, Implementation plans & walkthroughs
-│   ├── SCREENSHOTS.md          # Full visual gallery of all app tabs & features
+│   ├── SCREENSHOTS.md          # Quick screenshots index
+│   ├── UserInterfaceTour.md    # Full visual UI tour with all screenshots embedded
 │   └── User_Guide.md           # Friendly documentation for non-technical users
 ├── gui/                        # Frontend UI assets
 │   ├── app.js                  # Frontend controllers and API bridge
