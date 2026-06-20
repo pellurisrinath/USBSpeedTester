@@ -28,6 +28,7 @@ This document details the walkthrough of the bug fixes and features added to res
     *   Includes a checkbox to auto-launch the application upon completion.
     *   **Layout and Visibility Fixes**: Increased geometry to `540x400` and packed `btn_frame` with `side=tk.BOTTOM` to prevent button clipping. Styled the buttons with Slate 700 and Purple 500 backgrounds with white text for high contrast and clear visibility in dark mode.
     *   **Process Launch Fix**: Removed the mutually exclusive `subprocess.CREATE_NEW_CONSOLE` creation flag from the detached Popen call. This resolves `[WinError 87] The parameter is incorrect` that crashed the installer during auto-launch.
+    *   **Verbose Logging**: Implemented a comprehensive logging module inside the installer script. During execution, it automatically writes detailed execution details—such as system parameters, source/destination sizes, lock checks, PowerShell shortcut commands and outputs, and complete traceback diagnostics for any errors—to a persistent log file at **`C:\ProgramData\USBSpeedTest\setup_install.log`**.
 *   **`build.bat` [MODIFY]**:
     *   Updated the script to first compile the main `dist/USBSpeedTest.exe` and then compile `dist/UBSSpeedtest_setup.exe` bundling the compiled app binary.
 
