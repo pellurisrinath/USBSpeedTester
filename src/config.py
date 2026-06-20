@@ -4,7 +4,10 @@ import json
 from pathlib import Path
 
 # Base Directories
-APP_DIR = Path(__file__).parent.parent.resolve()
+if getattr(sys, 'frozen', False):
+    APP_DIR = Path(sys.executable).parent.resolve()
+else:
+    APP_DIR = Path(__file__).parent.parent.resolve()
 
 # Check if application directory is writable (portable mode check)
 is_portable = False

@@ -11,12 +11,57 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 sys.path.append(str(Path(__file__).parent / "modules"))
 
-from config import REPORTS_DIR, BASE_DIR, load_config, save_config
+from config import REPORTS_DIR, LOGS_DIR, BASE_DIR, load_config, save_config
 from modules.usb_detector import get_usb_storage_devices, get_usb_peripherals
 from modules.speed_test import perform_speed_test, generate_html_report, generate_comparison_html_report
 from modules.platform_utils import get_platform, open_report_file, open_file_explorer
 from modules.ai_client import AIClient
 import modules.monitor_service as monitor_service
+
+class Tee:
+    def __init__(self, stream, file):
+        self.stream = stream
+        self.file = file
+
+    def write(self, data):
+        if self.stream:
+            try:
+                self.stream.write(data)
+                self.stream.flush()
+            except:
+                pass
+        if self.file:
+            try:
+                self.file.write(data)
+                self.file.flush()
+            except:
+                pass
+
+    def flush(self):
+        if self.stream:
+            try:
+                self.stream.flush()
+            except:
+                pass
+        if self.file:
+            try:
+                self.file.flush()
+            except:
+                pass
+
+def setup_logging():
+    from config import ensure_directories
+    ensure_directories()
+    log_file_path = LOGS_DIR / "app.log"
+    try:
+        log_file = open(log_file_path, "a", encoding="utf-8")
+        log_file.write(f"\n--- Application started at {datetime.datetime.now().isoformat()} ---\n")
+        log_file.flush()
+        
+        sys.stdout = Tee(sys.stdout, log_file)
+        sys.stderr = Tee(sys.stderr, log_file)
+    except Exception as e:
+        sys.stderr.write(f"Failed to setup logging: {e}\n")
 
 # Global State
 app_window = None
@@ -481,6 +526,9 @@ def exit_app():
 
 def main():
     global app_window
+    
+    # Initialize logging to file
+    setup_logging()
     
     # Initialize Configuration folders
     ensure_directories = load_config()

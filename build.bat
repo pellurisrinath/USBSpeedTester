@@ -9,5 +9,8 @@ echo.
 echo Compiling application with PyInstaller...
 pyinstaller USBSpeedTest.spec
 echo.
-echo Done! Standalone executable is available under the 'dist' directory.
+echo Compiling setup installer (UBSSpeedtest_setup.exe)...
+pyinstaller --onefile --noconsole --name UBSSpeedtest_setup --add-data "dist/USBSpeedTest.exe;." --distpath dist src/setup_installer.py
+echo.
+echo Done! Standalone executable and setup installer are available under the 'dist' directory.
 echo.
