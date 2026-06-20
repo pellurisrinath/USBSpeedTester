@@ -13,11 +13,17 @@ This document details the walkthrough of the bug fixes and features added to res
     *   Added standard stream redirection via a custom `Tee` class and `setup_logging()` function.
     *   All console output (stdout/stderr) from `pywebview`, helper scripts, and warnings are now mirrored to `app.log` in the persistent `logs/` directory.
 
-### 2. Portable Path Resolution Fix
+### 2. Configuration Path Resolution & Persistence
 *   **`src/config.py` [MODIFY]**:
-    *   Modified the base path detector to check if `sys.frozen` is active (running as compiled PyInstaller).
-    *   If running frozen, it uses the directory containing the actual `.exe` file rather than the temporary `_MEIPASS` folder.
-    *   *Effect*: Corrects the false-positive portable mode. The application now persistent-logs and persistent-saves configurations to `C:\ProgramData\USBSpeedTest` when installed there, and the "Open Reports Folder" button points to the correct location.
+    *   Updated path resolution so that on Windows (`sys.platform == 'win32'`), `BASE_DIR` is **always** set to `C:\ProgramData\USBSpeedTest`, bypassing the portable mode check.
+    *   *Effect*: The configuration (`config.json`), logs (`app.log`), and reports are saved to a central, persistent location. When you remove, re-run, or reinstall the application, the app automatically checks for and reuses the existing configuration file, preserving all your settings.
+*   **`gui/index.html` [MODIFY]**:
+    *   Added an **Export Configuration** button (`exportConfigBtn`) to the Settings modal.
+*   **`gui/app.js` [MODIFY]**:
+    *   Wired the button to invoke the backend's export configuration method, showing visual toast notifications upon completion.
+*   **`src/main.py` [MODIFY]**:
+    *   Implemented `export_configuration()` to generate a default filename using the machine name (lowercase), timestamp, and timezone: `USBSpeedTest_<MachineName>_<ddMMMyyyy>_<HHmm>_<timezone>.cfg`.
+    *   Opens a native file save dialog via `pywebview` for the user to choose their export destination and saves the configuration as structured JSON.
 
 ### 3. Standalone Installer Wizard
 *   **`src/setup_installer.py` [NEW]**:
