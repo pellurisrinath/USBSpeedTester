@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="USB Speed Test and Device Monitor">
+    <meta name="theme-color" content="#1a1a2e">
+    
+    <title>USB Speed Test & Monitor</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div id="app" class="app-container">
+        
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <h1 class="app-title">
+                        <i class="fab fa-usb"></i> USB Speed Utility
+                    </h1>
+                    <p class="app-subtitle">Device Monitor &amp; Benchmark</p>
+                </div>
+                <div class="header-right">
+                    <div class="header-actions">
+                        <button id="refreshBtn" class="btn btn-icon" title="Refresh">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <button id="settingsBtn" class="btn btn-icon" title="Settings">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="app-main">
+            
+            <!-- Navigation Tabs -->
+            <nav class="tab-navigation">
+                <button class="tab-button active" data-tab="devices">
+                    <i class="fas fa-list"></i> Devices
+                </button>
+                <button class="tab-button" data-tab="storage">
+                    <i class="fas fa-hdd"></i> Storage
+                </button>
+                <button class="tab-button" data-tab="speedtest">
+                    <i class="fas fa-tachometer-alt"></i> Speed Test
+                </button>
+                <button class="tab-button" data-tab="comparison">
+                    <i class="fas fa-balance-scale"></i> Comparison
+                </button>
+                <button class="tab-button" data-tab="reports">
+                    <i class="fas fa-file-invoice"></i> Reports
+                </button>
+            </nav>
+
+            <!-- Tab Contents -->
+            <div class="tab-contents">
+                
+                <!-- Devices Tab -->
+                <div id="devices-tab" class="tab-content active">
+                    <div class="tab-header">
+                        <h2>Connected Peripherals</h2>
+                        <div class="filter-controls">
+                            <label for="deviceTypeFilter">Filter by Type:</label>
+                            <select id="deviceTypeFilter">
+                                <option value="">All Devices</option>
+                                <option value="STORAGE">Storage Drives</option>
+                                <option value="AUDIO">Audio Devices</option>
+                                <option value="CAMERA">Cameras &amp; Imaging</option>
+                                <option value="INPUT">Input Devices</option>
+                                <option value="GENERIC">Other Peripherals</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="devices-list" class="devices-grid scrollable">
+                        <!-- Device cards injected here -->
+                    </div>
+                </div>
+
+                <!-- Storage Tab -->
+                <div id="storage-tab" class="tab-content">
+                    <div class="tab-header">
+                        <h2>Storage Space Analysis</h2>
+                    </div>
+                    
+                    <div id="storage-panel" class="storage-grid scrollable">
+                        <!-- Storage devices and info injected here -->
+                    </div>
+                </div>
+
+                <!-- Speed Test Tab -->
+                <div id="speedtest-tab" class="tab-content">
+                    <div class="tab-header">
+                        <h2>Read / Write Benchmarking</h2>
+                    </div>
+                    
+                    <div id="speedtest-panel" class="speedtest-panel-layout scrollable">
+                        <!-- Speed test controls and results injected here -->
+                    </div>
+                </div>
+
+                <!-- Comparison Tab -->
+                <div id="comparison-tab" class="tab-content">
+                    <div class="tab-header">
+                        <h2>Multi-Device Performance Matrix</h2>
+                    </div>
+                    
+                    <div id="comparison-panel" class="comparison-panel-layout scrollable">
+                        <!-- Comparison table injected here -->
+                    </div>
+                </div>
+
+                <!-- Reports Tab -->
+                <div id="reports-tab" class="tab-content">
+                    <div class="tab-header">
+                        <h2>Saved HTML Reports</h2>
+                        <button id="openReportsFolderBtn" class="btn btn-secondary" style="font-size:12px; padding:6px 12px;">
+                            <i class="fas fa-folder-open"></i> Open Reports Folder
+                        </button>
+                    </div>
+                    
+                    <div id="reports-panel" class="reports-grid scrollable">
+                        <!-- Reports list injected here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <div class="footer-content">
+                <p class="footer-text">USB Utility v1.1.0</p>
+                <p class="footer-text" id="statusText">Ready</p>
+            </div>
+        </footer>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Application Settings</h3>
+                    <button class="modal-close" id="closeSettingsBtn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body" id="settingsBody">
+                    <div class="settings-form">
+                        <div class="form-group">
+                            <label class="switch-container">
+                                <input type="checkbox" id="mon-enabled-cb" checked>
+                                <span class="slider"></span>
+                                <span class="label-text">Enable Background Storage Alert Checks</span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="mon-interval">Monitoring Check Interval (seconds):</label>
+                            <input type="number" id="mon-interval-input" min="10" max="600" value="60">
+                        </div>
+                        <div class="form-group">
+                            <label for="mon-threshold">Low Space Alarm Threshold (% free):</label>
+                            <input type="number" id="mon-threshold-input" min="5" max="50" value="10">
+                        </div>
+                        <div class="form-group">
+                            <label for="default-size">Default Benchmark File Size (MB):</label>
+                            <select id="default-size-select">
+                                <option value="20">20 MB</option>
+                                <option value="50">50 MB</option>
+                                <option value="100" selected>100 MB</option>
+                                <option value="250">250 MB</option>
+                            </select>
+                        </div>
+                        <button id="saveSettingsBtn" class="btn btn-primary" style="width:100%; margin-top:15px;">
+                            Save Configuration
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Modal -->
+        <div id="progressModal" class="modal">
+            <div class="modal-content modal-progress">
+                <div class="modal-body">
+                    <h4 id="progressTitle">Running Speed Test Benchmark</h4>
+                    <div class="speedometers-modal">
+                        <div class="modal-speedometer-box">
+                            <div class="progress-bar">
+                                <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+                            </div>
+                            <p id="progressText">0%</p>
+                        </div>
+                    </div>
+                    <p id="progressStatusText" style="font-size:12px; color:var(--color-text-secondary); margin-bottom:15px; text-align:center;">Preparing files...</p>
+                    <button id="cancelBtn" class="btn btn-danger" style="width:100%;">Cancel Benchmark</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notification Container -->
+        <div id="toastContainer" class="toast-container"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="app.js"></script>
+</body>
+</html>

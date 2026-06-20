@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USB Speed Test & Monitor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar/Left Panel: Device List -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+                        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+                        <line x1="6" y1="6" x2="6.01" y2="6"/>
+                        <line x1="6" y1="18" x2="6.01" y2="18"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1>USB Utility</h1>
+                    <span class="version">Speed Test &amp; Monitor</span>
+                </div>
+            </div>
+            
+            <div class="section-title">
+                <h2>Storage Devices</h2>
+                <button id="refresh-devices" class="icon-btn" title="Refresh USB List">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div id="storage-list" class="device-list scrollable">
+                <div class="empty-state">
+                    <p>Scanning for USB storage...</p>
+                </div>
+            </div>
+            
+            <div class="section-title">
+                <h2>Other Peripherals</h2>
+            </div>
+            
+            <div id="peripheral-list" class="peripheral-list scrollable">
+                <div class="empty-state">
+                    <p>No other peripherals found</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Panel: Benchmark Dashboard -->
+        <main class="main-content">
+            <header class="app-header">
+                <div class="service-status">
+                    <span class="status-dot active"></span>
+                    <span class="status-text">Background Monitor Active</span>
+                </div>
+                <div class="settings-control">
+                    <label class="switch">
+                        <input type="checkbox" id="service-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                    <span class="label-text">Low Space Alerts</span>
+                </div>
+            </header>
+
+            <div class="dashboard-grid">
+                <!-- Speed Test Panel -->
+                <div class="dashboard-card hero-card">
+                    <div class="card-glow"></div>
+                    <h2>Speed Test Benchmark</h2>
+                    <p class="subtitle">Select a drive in the sidebar to benchmark transfer speeds</p>
+                    
+                    <div class="selected-device-display" id="selected-device-info">
+                        <span class="placeholder-text">No drive selected</span>
+                    </div>
+
+                    <div class="speedometer-container">
+                        <!-- Read Meter -->
+                        <div class="meter-box">
+                            <svg class="radial-progress" viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="40" class="bg"></circle>
+                                <circle cx="50" cy="50" r="40" class="prog read-prog" id="read-meter" stroke-dasharray="251.2" stroke-dashoffset="251.2"></circle>
+                            </svg>
+                            <div class="meter-content">
+                                <span class="meter-title">Read Speed</span>
+                                <div class="meter-value" id="read-val">0.00</div>
+                                <span class="meter-unit">MB/s</span>
+                            </div>
+                        </div>
+
+                        <!-- Write Meter -->
+                        <div class="meter-box">
+                            <svg class="radial-progress" viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="40" class="bg"></circle>
+                                <circle cx="50" cy="50" r="40" class="prog write-prog" id="write-meter" stroke-dasharray="251.2" stroke-dashoffset="251.2"></circle>
+                            </svg>
+                            <div class="meter-content">
+                                <span class="meter-title">Write Speed</span>
+                                <div class="meter-value" id="write-val">0.00</div>
+                                <span class="meter-unit">MB/s</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="progress-display" id="test-progress-area">
+                        <div class="progress-info">
+                            <span id="test-stage">Idle</span>
+                            <span id="test-pct">0%</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" id="test-progress-bar" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="test-controls">
+                        <div class="size-select-group">
+                            <label for="test-size">Test Size:</label>
+                            <select id="test-size">
+                                <option value="20">20 MB (Fast)</option>
+                                <option value="50" selected>50 MB (Recommended)</option>
+                                <option value="100">100 MB</option>
+                                <option value="250">250 MB (Thorough)</option>
+                            </select>
+                        </div>
+                        <button id="start-test-btn" disabled>Run speed test</button>
+                    </div>
+                </div>
+
+                <div class="right-column" style="display: flex; flex-direction: column; gap: 30px; height: 100%; min-height: 0;">
+                    <!-- Reports Panel -->
+                    <div class="dashboard-card reports-card" style="flex: 1; min-height: 0;">
+                        <h2>Generated Reports</h2>
+                        <p class="subtitle">HTML reports are saved in C:\ProgramData\UBSSpeedTest\</p>
+                        
+                        <div id="reports-list" class="reports-list scrollable" style="flex: 1; overflow-y: auto;">
+                            <div class="empty-state">
+                                <p>No reports generated in this session yet.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comparison Panel -->
+                    <div class="dashboard-card comparison-card" id="comparison-card" style="flex: 1.2; min-height: 0; display: flex; flex-direction: column;">
+                        <h2>USB Performance Comparison</h2>
+                        <p class="subtitle">Side-by-side technical performance metrics</p>
+                        
+                        <div id="comparison-table-container" class="scrollable" style="flex: 1; overflow-x: auto; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--card-border); border-radius: 8px; background: rgba(0,0,0,0.2);">
+                            <div class="empty-state">
+                                <p>Perform speed tests on different drives to compare.</p>
+                            </div>
+                        </div>
+                        <button id="generate-comparison-report-btn" style="width: 100%; padding: 12px; font-weight: 700; border: none; background: linear-gradient(135deg, var(--primary), var(--accent-blue)); color: white; border-radius: 8px; cursor: pointer; font-family: inherit; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.2);">
+                            Generate Comparison HTML Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Notification system for user alerts within GUI -->
+    <div id="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

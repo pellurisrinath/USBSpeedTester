@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>AntiGravity_USBSpeedTest</name>
+	<comment>A cross-platform standalone USB Speed Test and Disk Space Monitor application using Python and PyWebView.</comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>org.eclipse.pydev.PyDevBuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>org.eclipse.pydev.pythonNature</nature>
+	</natures>
+</projectDescription>
