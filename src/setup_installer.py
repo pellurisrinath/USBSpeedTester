@@ -20,7 +20,7 @@ class SetupInstaller:
     def __init__(self, root):
         self.root = root
         self.root.title("USB Speed Test & Monitor Setup")
-        self.root.geometry("520x360")
+        self.root.geometry("540x400")
         self.root.resizable(False, False)
         self.root.configure(bg=COLOR_BG)
 
@@ -49,9 +49,9 @@ class SetupInstaller:
         self.create_widgets()
 
     def create_widgets(self):
-        # Header banner
+        # Header banner (packed at the top)
         header_frame = tk.Frame(self.root, bg=COLOR_PANEL, height=80)
-        header_frame.pack(fill=tk.X)
+        header_frame.pack(side=tk.TOP, fill=tk.X)
         header_frame.pack_propagate(False)
 
         title_label = ttk.Label(header_frame, text="USB Speed Test & Monitor", style="Title.TLabel", background=COLOR_PANEL)
@@ -60,9 +60,50 @@ class SetupInstaller:
         subtitle_label = ttk.Label(header_frame, text="Setup Wizard - Standalone Installer", style="Subtitle.TLabel", background=COLOR_PANEL)
         subtitle_label.pack(anchor=tk.W, padx=20)
 
-        # Body area
+        # Bottom buttons panel (packed at the bottom to ensure visibility and prevent clipping)
+        btn_frame = tk.Frame(self.root, bg=COLOR_BG, height=60)
+        btn_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        btn_frame.pack_propagate(False)
+
+        # Divider line above buttons (packed just above the buttons)
+        divider = tk.Frame(self.root, bg=COLOR_PANEL, height=1)
+        divider.pack(side=tk.BOTTOM, fill=tk.X)
+
+        self.btn_cancel = tk.Button(
+            btn_frame, 
+            text="Cancel", 
+            command=self.root.quit,
+            bg="#334155",            # High-visibility Slate 700 background
+            fg="#FFFFFF",            # High-contrast white text
+            activebackground="#475569", 
+            activeforeground="#FFFFFF",
+            bd=1, 
+            relief=tk.FLAT,
+            padx=18, 
+            pady=6, 
+            font=("Segoe UI", 9, "bold")
+        )
+        self.btn_cancel.pack(side=tk.RIGHT, padx=(10, 20), pady=12)
+
+        self.btn_install = tk.Button(
+            btn_frame, 
+            text="Install Now", 
+            command=self.start_installation,
+            bg=COLOR_PRIMARY,        # Vibrant Purple background
+            fg="#FFFFFF",            # High-contrast white text
+            activebackground="#7C3AED", 
+            activeforeground="#FFFFFF",
+            bd=1, 
+            relief=tk.FLAT,
+            padx=22, 
+            pady=6, 
+            font=("Segoe UI", 9, "bold")
+        )
+        self.btn_install.pack(side=tk.RIGHT, pady=12)
+
+        # Body area (packed in the center, filling remaining space)
         body_frame = tk.Frame(self.root, bg=COLOR_BG)
-        body_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        body_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=20, pady=15)
 
         desc_text = (
             "This installer will deploy the USB Speed Test & Monitor application to your computer.\n\n"
@@ -72,14 +113,14 @@ class SetupInstaller:
             "• Configures system tray helper, notifications, and shortcuts."
         )
         self.desc_label = ttk.Label(body_frame, text=desc_text, justify=tk.LEFT)
-        self.desc_label.pack(anchor=tk.W, fill=tk.X, pady=(0, 20))
+        self.desc_label.pack(anchor=tk.W, fill=tk.X, pady=(0, 10))
 
         # Progress / Status display
         self.status_label = ttk.Label(body_frame, text="Ready to install.", style="Status.TLabel")
-        self.status_label.pack(anchor=tk.W, pady=(5, 5))
+        self.status_label.pack(anchor=tk.W, pady=(5, 2))
 
         self.progress = ttk.Progressbar(body_frame, mode='determinate', style="TProgressbar")
-        self.progress.pack(fill=tk.X, pady=(0, 15))
+        self.progress.pack(fill=tk.X, pady=(0, 10))
         self.progress['value'] = 0
 
         # Launch checkbox
@@ -96,45 +137,6 @@ class SetupInstaller:
             font=("Segoe UI", 9)
         )
         self.launch_check.pack(anchor=tk.W)
-
-        # Divider line above buttons
-        divider = tk.Frame(self.root, bg=COLOR_PANEL, height=1)
-        divider.pack(fill=tk.X)
-
-        # Bottom buttons panel
-        btn_frame = tk.Frame(self.root, bg=COLOR_BG, height=50)
-        btn_frame.pack(fill=tk.X)
-        btn_frame.pack_propagate(False)
-
-        self.btn_cancel = tk.Button(
-            btn_frame, 
-            text="Cancel", 
-            command=self.root.quit,
-            bg=COLOR_PANEL, 
-            fg=COLOR_TEXT, 
-            activebackground=COLOR_BG, 
-            activeforeground=COLOR_TEXT,
-            bd=0, 
-            padx=15, 
-            pady=5, 
-            font=("Segoe UI", 9)
-        )
-        self.btn_cancel.pack(side=tk.RIGHT, padx=(10, 20), pady=10)
-
-        self.btn_install = tk.Button(
-            btn_frame, 
-            text="Install Now", 
-            command=self.start_installation,
-            bg=COLOR_PRIMARY, 
-            fg=COLOR_TEXT, 
-            activebackground="#7C3AED", 
-            activeforeground=COLOR_TEXT,
-            bd=0, 
-            padx=20, 
-            pady=5, 
-            font=("Segoe UI", 9, "bold")
-        )
-        self.btn_install.pack(side=tk.RIGHT, pady=10)
 
     def start_installation(self):
         # Disable buttons
@@ -237,7 +239,7 @@ class SetupInstaller:
             # Launch application if requested
             if self.launch_var.get():
                 self.update_status("Launching application...", 100, COLOR_SUCCESS)
-                subprocess.Popen([str(self.dest_exe)], creationflags=subprocess.CREATE_NEW_CONSOLE | subprocess.DETACHED_PROCESS)
+                subprocess.Popen([str(self.dest_exe)], creationflags=subprocess.DETACHED_PROCESS)
                 time.sleep(0.5)
                 self.root.quit()
 
