@@ -49,7 +49,7 @@ graph TD
     PyAPI --> USB["usb_detector.py (WMI / lsusb)"]
     PyAPI --> Bench["speed_test.py (Write/Read Benchmark)"]
     PyAPI --> Service["monitor_service.py (Tray & Alert Loop)"]
-    Bench --> |Saves HTML Report| Reports["C:/ProgramData/UBSSpeedTest/reports/"]
+    Bench --> |Saves HTML Report| Reports["C:/ProgramData/USBSpeedTest/reports/"]
     Service --> |Toast Notifications| User["Desktop Toasts"]
 ```
 
@@ -156,7 +156,7 @@ Once complete, your standalone executable will be located at:
 
 This application is designed with privacy-first principles:
 1. **No External Telemetry**: The app operates fully locally and does not upload metrics to any cloud servers.
-2. **Local Storage**: All settings are stored in `config.json` inside the user’s local folders (`C:\ProgramData\UBSSpeedTest` or the installation directory).
+2. **Local Storage**: All settings are stored in `config.json` inside the user’s local folders (`C:\ProgramData\USBSpeedTest` or the installation directory).
 3. **No Hardcoded Keys**: The application contains no embedded API keys, secret credentials, or personal tokens. If you utilize cloud integrations, keys are stored locally on your machine and are only transmitted directly to the official vendor APIs (e.g. OpenAI, Anthropic) without intermediate proxies.
 
 ---

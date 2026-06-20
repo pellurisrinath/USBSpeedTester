@@ -17,7 +17,7 @@ We are proud to release **v1.1.0** of the **USB Speed Test & Monitor Utility**, 
    - Saves clean, print-ready, plain-white background reports (meeting executive readability and high-contrast styling specifications) detailing:
      - USB Device Model Performance Leaderboard (Fastest Read, Fastest Write, Overall Champion).
      - Full side-by-side technical parameters (throughput speeds, durations, file systems, mount points, serial numbers).
-   - Saved locally at `C:\ProgramData\UBSSpeedTest\compare_report_<timestamp>.html` (or `~/.UBSSpeedTest/` on macOS/Linux).
+   - Saved locally at `C:\ProgramData\USBSpeedTest\compare_report_<timestamp>.html` (or `~/.USBSpeedTest/` on macOS/Linux).
 
 ---
 
@@ -37,4 +37,4 @@ To compile this updated version into a standalone binary:
 pyinstaller --noconsole --onefile --name USBSpeedTest --add-data "gui;gui" src/main.py
 ```
 Copy the resulting binary `USBSpeedTest.exe` from the `dist` directory into:
-`C:\ProgramData\UBSSpeedTest\USBSpeedTest.exe`
+`C:\ProgramData\USBSpeedTest\USBSpeedTest.exe`

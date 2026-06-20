@@ -6,7 +6,7 @@
 - **Version**: 1.0.0
 - **Build System**: PyInstaller (produces standalone binary)
 - **Runtime Environment**: Python 3.10+
-- **Production Directory**: `C:\ProgramData\UBSSpeedTest\` (Target folder for HTML reports and standalone installation on Windows)
+- **Production Directory**: `C:\ProgramData\USBSpeedTest\` (Target folder for HTML reports and standalone installation on Windows)
 
 ## Design Architecture
 
@@ -16,7 +16,7 @@ graph TD
     PyAPI --> USB[usb_detector.py WMI / lsusb]
     PyAPI --> Bench[speed_test.py Write/Read Test]
     PyAPI --> Service[monitor_service.py System Tray & Alert Loop]
-    Bench --> |Saves Report| Reports[C:/ProgramData/UBSSpeedTest/report_*.html]
+    Bench --> |Saves Report| Reports[C:/ProgramData/USBSpeedTest/report_*.html]
     Service --> |Toast Notifications| User[Desktop Notification]
 ```
 

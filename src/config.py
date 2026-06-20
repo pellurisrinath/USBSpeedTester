@@ -5,7 +5,7 @@ from pathlib import Path
 
 # Base Directories
 if sys.platform == 'win32':
-    BASE_DIR = Path("C:\\ProgramData\\UBSSpeedTest")
+    BASE_DIR = Path("C:\\ProgramData\\USBSpeedTest")
 elif sys.platform == 'darwin':
     BASE_DIR = Path.home() / "Library" / "Application Support" / "USBSpeedTest"
 else:

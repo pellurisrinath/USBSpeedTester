@@ -88,7 +88,7 @@ def perform_speed_test(mount_point, test_file_size_mb=50, progress_callback=None
 def generate_html_report(device_info, volume_info, results):
     """
     Generates a detailed, premium HTML report of the speed test and disk space.
-    Saves it to C:\\ProgramData\\UBSSpeedTest\\
+    Saves it to C:\\ProgramData\\USBSpeedTest\\
     """
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     file_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -102,10 +102,10 @@ def generate_html_report(device_info, volume_info, results):
     free_gb = round(volume_info["free"] / (1024**3), 2)
     
     # Prepare reports folder
-    report_dir = "C:\\ProgramData\\UBSSpeedTest"
+    report_dir = "C:\\ProgramData\\USBSpeedTest"
     if sys.platform != 'win32':
         # On Mac/Linux, fallback to home directory
-        report_dir = os.path.expanduser("~/.UBSSpeedTest")
+        report_dir = os.path.expanduser("~/.USBSpeedTest")
         
     try:
         os.makedirs(report_dir, exist_ok=True)
@@ -540,7 +540,7 @@ def generate_html_report(device_info, volume_info, results):
 def generate_comparison_html_report(test_runs):
     """
     Generates a detailed, plain-white HTML comparison report for multiple speed test runs.
-    Saves it to C:\\ProgramData\\UBSSpeedTest\\
+    Saves it to C:\\ProgramData\\USBSpeedTest\\
     """
     if not test_runs:
         return None
@@ -554,9 +554,9 @@ def generate_comparison_html_report(test_runs):
     fastest_overall = max(test_runs, key=lambda t: t["results"]["read_speed"] + t["results"]["write_speed"])
     
     # Prepare reports folder
-    report_dir = "C:\\ProgramData\\UBSSpeedTest"
+    report_dir = "C:\\ProgramData\\USBSpeedTest"
     if sys.platform != 'win32':
-        report_dir = os.path.expanduser("~/.UBSSpeedTest")
+        report_dir = os.path.expanduser("~/.USBSpeedTest")
         
     try:
         os.makedirs(report_dir, exist_ok=True)
