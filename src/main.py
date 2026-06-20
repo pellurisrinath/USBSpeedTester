@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 sys.path.append(str(Path(__file__).parent / "modules"))
 
-from config import REPORTS_DIR, LOGS_DIR, COMPARISONS_DIR, BASE_DIR, load_config, save_config
+from config import REPORTS_DIR, LOGS_DIR, COMPARISONS_DIR, BASE_DIR, load_config, save_config, GUARDRAILS_FILE
 from modules.usb_detector import get_usb_storage_devices, get_usb_peripherals
 from modules.speed_test import perform_speed_test, generate_html_report, generate_comparison_html_report
 from modules.platform_utils import get_platform, open_report_file, open_file_explorer
@@ -619,23 +619,32 @@ class BackendAPI:
             else:
                 recent_benchmarks = "No speed benchmarks have been run in this session yet."
                 
+            # Load Guardrails.md dynamically from disk
+            guardrails_content = ""
+            try:
+                if GUARDRAILS_FILE.exists():
+                    with open(GUARDRAILS_FILE, 'r', encoding='utf-8') as gf:
+                        guardrails_content = gf.read()
+            except Exception as ge:
+                print(f"Error reading Guardrails.md: {ge}", file=sys.stderr)
+
+            if not guardrails_content:
+                guardrails_content = "1. Answer ONLY questions related to this application and its features."
+
             system_prompt = (
                 "You are the USB Speed Utility AI Assistant, a helpful and technical assistant integrated directly into a desktop USB diagnostics tool.\n"
                 "Your goal is to help users analyze speed test results, explain USB hardware protocols/standards, and troubleshoot USB-related issues.\n\n"
+                "IMPORTANT: You must use the following Guardrails (loaded dynamically from C:\\ProgramData\\USBSpeedTest\\Guardrails.md) as a strict pre-requisite when processing any user query:\n"
+                f"{guardrails_content}\n\n"
                 "Current System Context:\n"
                 f"Connected USB Devices:\n{devices_summary or 'No USB devices detected.'}\n\n"
                 f"Recent Benchmark Runs in this Session:\n{recent_benchmarks}"
                 f"{online_search_context}\n\n"
                 "Guidelines:\n"
-                "1. Answer ONLY questions pertaining to this application, its features, USB technology, storage protocols, or hardware diagnostics/troubleshooting.\n"
-                "2. If the user asks about anything out of scope (such as generating images, generating PDFs, movies, writing general non-USB code, or general knowledge), you must NOT answer. Instead, respond with exactly: 'This request is outside the scope of my usage as the USB Speed Utility AI Assistant.'\n"
-                "3. If the user asks you to write an email to report USB slowness or issues, you are ALLOWED to write the email template. However, you must NOT write general emails or general-purpose Python scripts for other projects. If the user asks for those, politely refuse or ask for more details on how it relates to USB diagnostics.\n"
-                "4. If the user uses any profane, vulgar, or inappropriate language, refuse to answer and state: 'You have used a restricted word. This query will be marked and sent for review.'\n"
-                "5. When asked about device specifications or performance, utilize the provided 'Web Search Reference' snippets and device driver details in the System Context to supply correct, realistic specifications.\n"
-                "6. If the 'Web Search Reference' indicates that the system is Offline (unable to connect online), you MUST report back to the user stating that you cannot fetch specifications from online right now.\n"
-                "7. Give direct, practical, technical yet easy-to-understand explanations.\n"
-                "8. Suggest actionable steps if a device appears slow (e.g., check port types USB 2.0 vs 3.0, formatting options FAT32/exFAT/NTFS, cluster sizes).\n"
-                "9. Keep answers concise, and format code or command instructions cleanly using Markdown blocks."
+                "1. Refer to the Guardrails as your primary instructions and constraints.\n"
+                "2. Give direct, practical, technical yet easy-to-understand explanations.\n"
+                "3. Suggest actionable steps if a device appears slow (e.g., check port types USB 2.0 vs 3.0, formatting options FAT32/exFAT/NTFS, cluster sizes).\n"
+                "4. Keep answers concise, and format code or command instructions cleanly using Markdown blocks."
             )
             
             # Inject system prompt into history (remove any pre-existing system prompt to avoid conflict)
