@@ -163,6 +163,18 @@ This project is licensed under the MIT License. Feel free to modify, distribute,
 
 ---
 
+## Star History
+
+<a href="https://www.star-history.com/?repos=pellurisrinath%2FUSBSpeedTester&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=pellurisrinath/USBSpeedTester&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=pellurisrinath/USBSpeedTester&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=pellurisrinath/USBSpeedTester&type=date&legend=top-left" />
+ </picture>
+</a>
+
+---
+
 ## Support
 
 If you like the project and want to support it, you can buy me a coffee. It will help me to keep working on the project.
