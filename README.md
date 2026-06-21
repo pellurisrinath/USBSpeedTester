@@ -183,5 +183,5 @@ If you like the project and want to support it, you can buy me a coffee. It will
 
 or you can sponsor me on GitHub.
 
-A huge thank you to everyone who has supported Page Assist through [Ko-fi](https://ko-fi.com/pellurisrinath) and [GitHub Sponsors](https://github.com/sponsors/pellurisrinath) — your generosity keeps this project going. 💛
+A huge thank you to everyone who has supported this project through [Ko-fi](https://ko-fi.com/pellurisrinath) and [GitHub Sponsors](https://github.com/sponsors/pellurisrinath) — your generosity keeps this project going. 💛
 
